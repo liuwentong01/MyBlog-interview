@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+  <style>
+    *{
+      margin: 0;
+      padding: 0;
+    }
+    #left {
+      background-color: #f00;
+      float: left;
+      width: 100px;
+      height: 500px;
+    }
+    #right-fix {
+      float: right;
+      width: 100%;
+      height: 500px;
+      /*正值大于或等于#left的宽度,才能显示在同一行,
+      因为这时，第一列才能放得下right-fix.(也就是第一列能放得下就放第一列)*/
+      margin-left: -100px; 
+    }
+    #right{
+      /*大于或等于#left的宽度*/
+      margin-left: 100px;
+      background-color: #0f0;
+      height: 500px;
+    }
+  </style>
+</head>
+<body>
+  <div id="left">左列定宽</div>
+  <div id="right-fix">
+    <div id="right">右列自适应</div>
+  </div>
+</body>
+</html>

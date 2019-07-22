@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+  <style>
+    .wrap{
+      background-color: yellow;
+      width: 900px;
+      height: 500px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .content{
+      width: 400px;
+      background-color: green;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap"><div class="content">ToString负责处理非字符串到字符串的强制类型转换，常用的字符串化方法String()、toString()。
+  基本类型值的字符串化规则：
+  
+  null转换为'null'
+  undefined转换为'undefined'
+  true转化为'true'
+  数字的字符串化遵循通用规则，极大值或者极小值采用科学计数法表示
+  
+  作者：william_li
+  链接：https://juejin.im/post/5d122eb3f265da1b957065d4
+  来源：掘金
+  著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。</div></div>
+  <script>
+    var wrap = document.querySelector(".wrap");
+    var content = document.querySelector("");
+    wrap.addEventListener("dragenter",function(e){
+      e.preventDefault();
+    })
+    wrap.addEventListener("dragover",function(e){
+      e.preventDefault();
+    })
+    wrap.addEventListener("drop",function(e){
+      e.preventDefault();
+    })
+
+  </script>
+</body>
+</html>

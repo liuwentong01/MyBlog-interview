@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+  <style>
+    *{
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      min-width: 500px;
+    }
+
+    #container {
+      width: 100%;
+    }
+
+    .column {
+      float: left;
+    }
+            
+    #center {
+      margin-left: 200px;
+      margin-right: 150px;
+      background-color: red;
+    }
+            
+    #left {
+      width: 200px; 
+      margin-left: -100%;
+      background-color: blue;
+    }
+            
+    #right {
+      width: 150px; 
+      margin-left: -150px;
+      background-color: green;
+    }
+            
+    #footer {
+      clear: both;
+      background-color: gray;
+    }
+    #header{
+      clear: both;
+      background-color: gray;
+    }
+  </style>
+</head>
+<body>
+  <div id="header">
+    <h1>this is the header</h1>
+  </div>
+
+
+  <div id="container" class="column">
+    <div id="center">
+      <h1>this is the main content</h1>
+      <p>This is the main content.
+        Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonummy nibh euismod tincidunt ut laoreet
+        dolore
+        magna aliquam erat volutpat. Ut wisi enim ad minim veniam, quis nostrud exerci tation ullamcorper suscipit
+        lobortis nisl
+        ut aliquip ex ea commodo consequat. Duis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie
+        consequat, vel illum dolore eu feugiat nulla facilisis at vero eros et accumsan et iusto odio dignissim qui
+        blandit
+        praesent luptatum zzril delenit augue duis dolore te feugait nulla.
+  
+        Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonummy nibh euismod tincidunt ut laoreet
+        dolore
+        magna aliquam erat volutpat. Ut wisi enim ad minim veniam, quis nostrud exerci tation ullamcorper suscipit
+        lobortis nisl
+        ut aliquip ex ea commodo consequat. Duis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie
+        consequat, vel illum dolore eu feugiat nulla facilisis at vero eros et accumsan et iusto odio dignissim qui
+        blandit
+        praesent luptatum zzril delenit augue duis dolore te feugait nulla.</p>
+    </div>
+  </div>
+
+  <div id="left" class="column">
+    <h1>this is the left content</h1>
+    <p>This is the left sidebar.
+      Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonummy nibh euismod tincidunt ut laoreet
+      dolore
+      magna aliquam erat volutpat. Ut wisi enim ad minim veniam, quis nostrud exerci tation ullamcorper suscipit
+      lobortis nisl
+      ut aliquip ex ea commodo consequat. Duis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie
+      consequat, vel illum dolore eu feugiat nulla facilisis at vero eros et accumsan et iusto odio dignissim qui
+      blandit
+      praesent luptatum zzril delenit augue duis dolore te feugait nulla.</p>
+  </div>
+
+  <div id="right" class="column">
+    <h1>this is the right</h1>
+    <p>Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonummy nibh euismod tincidunt ut laoreet
+      dolore
+      magna aliquam erat volutpat. Ut wisi enim ad minim veniam, quis nostrud exerci tation ullamcorper suscipit
+      lobortis nisl
+      ut aliquip ex ea commodo consequat. Duis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie
+      consequat, vel illum dolore eu feugiat nulla facilisis at vero eros et accumsan et iusto odio dignissim qui
+      blandit
+      praesent luptatum zzril delenit augue duis dolore te feugait nulla.</p>
+  </div>
+
+
+  <div id="footer">
+    <h1>this is the footer</h1>
+  </div>
+</body>
+</html>
