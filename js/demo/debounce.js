@@ -20,6 +20,7 @@ function debounce(func, wait, immediate) {
       timeout = setTimeout(function() {
         timeout = null;
       }, wait);
+      console.log(timeout);
       if (callNow) result = func.apply(context, args);
     } else {
       timeout = setTimeout(function() {
@@ -30,26 +31,3 @@ function debounce(func, wait, immediate) {
 
   };
 }
-
-/********************************** */
-let DFSdeepClone = (obj, visitedArr = []) => {
-  let _obj = {};
-  if (isTypeOf(obj, "array") || isTypeOf(obj, "object")) {
-    let index = visitedArr.indexOf(obj);
-    _obj = isTypeOf(obj, "array") ? [] : {};
-    if (~index) {
-      // 判断环状数据
-      _obj = visitedArr[index];
-    } else {
-      visitedArr.push(obj);
-      for (let item in obj) {
-        _obj[item] = DFSdeepClone(obj[item], visitedArr);
-      }
-    }
-  } else if (isTypeOf(obj, "function")) {
-    _obj = eval("(" + obj.toString() + ")");
-  } else {
-    _obj = obj;
-  }
-  return _obj;
-};
