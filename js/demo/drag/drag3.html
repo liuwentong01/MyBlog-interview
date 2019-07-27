@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+  <style>
+    /* .demo * {
+      float: left;
+      width: 100px;
+      height: 100px;
+      border: 1px solid #000;
+    } */
+  
+    img {
+      width: 100px;
+      height: 100px;
+      display: inline-block;
+    }
+  
+    .drop {
+      width: 100px;
+      height: 100px;
+      border: 1px solid #000;
+    }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <img id="one" draggable="true" src="./1.png" alt="">
+    <img id="two" draggable="true" src="./2.png" alt="">
+    <img id="three" draggable="true" src="./3.png" alt="">
+    <div class="drop"></div>
+  </div>
+  <script>
+    var box = document.querySelector('.box');
+    var drop = document.querySelector('.drop');
+    box.ondragstart = function (e) {
+      e.dataTransfer.effectAllowed = "move"
+      e.dataTransfer.setData('id', e.target.id);
+    }
+    // box.ondrag = function (e) {
+    //   console.log('drag', e.target.id);
+    // }
+    // box.ondragend = function (e) {
+    //   console.log('dragend')
+    // }
+    drop.ondragenter = function (e) {
+      e.dataTransfer.dropEffect = "link";
+      e.preventDefault();
+    }
+    drop.ondragover = function (e) {
+      e.preventDefault();
+    }
+    // drop.ondragleave = function (e) {
+    //   console.log('dragleave');
+    //   e.preventDefault();
+    // }
+    drop.ondrop = function (e) {
+      var imgId = e.dataTransfer.getData('id');
+      var img = document.getElementById(imgId).cloneNode(true);
+      drop.appendChild(img);
+    }
+  </script>
+</body>
+</html>

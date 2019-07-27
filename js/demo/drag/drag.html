@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+  <style>
+    div{
+      height: 100px;
+      width: 200px;
+      background-color: #ddd;
+    }
+  </style>
+</head>
+<body>
+  <div id='myDiv' draggable="true" ></div>
+  <textarea name="liu" id="text" cols="30" rows="10">
+    javascript css dom html ajax ecmascript wo dou xing
+  </textarea>
+  <script>
+    var text = document.getElementById('text');
+    var myDiv = document.getElementById('myDiv');
+    myDiv.addEventListener('dragenter', function(e){
+      e.dataTransfer.dropEffect = "move";
+      e.preventDefault();
+    })
+    myDiv.addEventListener('dragover', function(e){
+      e.preventDefault();
+    })
+    myDiv.addEventListener('drop',function(e){
+      console.log(1);
+      console.log(e.dataTransfer.getData('Text'))
+    })
+    myDiv.addEventListener('dragleave', function (e) {
+      console.log(1);
+      console.log(e.dataTransfer.getData('Text'));
+      var str = e.dataTransfer.getData('Text');
+      myDiv.innerHTML = '123';
+    })
+    text.addEventListener('dragstart',function(e){
+     // e.dataTransfer.setData('Text','javascript, css, js, dom typescript');
+      e.dataTransfer.effectAllowed = "all";
+    })
+  </script>
+</body>
+</html>
