@@ -57,3 +57,18 @@ for(var i of collection){
  *      var arr2 = [4,5,6];
  *      var arr = [0, ...arr1, ...arr2]
  * */
+ 
+ //5.异步任务执行器
+//eg1
+function run(taskDef){
+  var task = taskDef();
+  var result = task.next();
+  function step(){
+    if(!result.done){
+      result = result.next(result.value);
+      step();
+    }
+  }
+  step();
+}
+
