@@ -6,27 +6,23 @@
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <title>Document</title>
   <style>
-    *{
-      margin: 0;
-      padding: 0;
+    body{
+      display: flex;
     }
-    #left {
-      background-color: #f00;
-      float: left;
+    .left{
       width: 100px;
       height: 500px;
+      background-color: red;
     }
-    #right {
-        background-color: #0f0;
-        height: 600px;
-        overflow: hidden; 
+    .right{
+      flex: 1;
+      height: 600px;
+      background-color: blue;
     }
   </style>
 </head>
 <body>
-  <body>
-    <div id="left">左列定宽</div>
-    <div id="right">右列自适应</div>
-  </body>
+  <div class="left">左侧定宽</div>
+  <div class="right">右侧自适应</div>
 </body>
 </html>

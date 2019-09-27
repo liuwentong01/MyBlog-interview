@@ -4,25 +4,28 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <title>Document</title>
+  <title>两列布局</title>
   <style>
-    body{
-      display: flex;
+    *{
+      margin: 0;
+      padding: 0;
     }
     .left{
       width: 100px;
       height: 500px;
+      float: left;
       background-color: red;
     }
     .right{
-      flex: 1;
+      width: auto;
       height: 500px;
-      background-color: green;
+      margin-left: 100px;
+       background-color: yellowgreen;
     }
   </style>
 </head>
 <body>
-  <div class="left">左侧定宽</div>
-  <div class="right">右侧自适应</div>
+  <div class="left"> left </div>
+  <div class="right">right</div>
 </body>
 </html>
