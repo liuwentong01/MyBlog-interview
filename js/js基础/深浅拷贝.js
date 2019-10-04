@@ -19,12 +19,14 @@ let obj = { a: 1, b: { x: 3 } };
 JSON.parse(JSON.stringify(obj));
 
 //2:递归拷贝
-function deepClone(obj){
-  let copy = {};
-  for(let i in obj){
-    if(obj.hasOwnProperty(i)){
-      copy[i] = typeof obj[i] === 'object' ? deepClone(obj[i]) : obj[i];
+function deepCopy(obj){
+  if(typeof obj !== 'object'){
+    var result = obj;
+  } else{
+    var result = obj instanceof Array ? [] : {};
+    for(let i in obj){
+     result[i] = typeof obj == 'object' ? deepCopy(obj[i]) : obj[i];
     }
   }
-  return copy;
+  return result;
 }
