@@ -1,12 +1,8 @@
 class Route {
   constructor() {
-    // 路由存储对象
     this.routes = {};
-    // 当前hash
     this.currentHash = "";
-    // 绑定this，避免监听时this指向改变
     this.freshRoute = this.freshRoute.bind(this);
-    // 监听
     window.addEventListener("load", this.freshRoute, false);
     window.addEventListener("hashchange", this.freshRoute, false);
   }

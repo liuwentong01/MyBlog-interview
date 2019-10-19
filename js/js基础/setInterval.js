@@ -1,5 +1,5 @@
 /**通过setTimeout来实现setTimeInterval */
-setInterval(() => {
+setTimeout(() => {
   setTimeout(arguments.callee, 500);
 },500)
 

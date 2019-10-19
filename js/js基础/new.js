@@ -8,12 +8,11 @@ function new0(){
 }
 
 
-/**********练习****************************** */
+/**练习 */
 
 function new0(context){
   var obj = new Object();
-  var args = Array.from(arguments);
-  args.shift();
+  var args = Array.prototype.slice.call(arguments, 1);
   obj.__proto__ = context.prototype;
   var result = context.apply(obj, args);
   return typeof result == "object" ? result : obj;

@@ -74,12 +74,6 @@ MyPromise.prototype.then = function(onResolve, onReject){
         } catch(ex){
           reject(ex)
         }
-        var x = onResolve(self.data);
-        if(x instanceof MyPromise){
-          x.then(resolve, reject);
-        } else {
-          resolve(x);
-        }
       });
       self.onRejectCallback.push(function(){
         try{
@@ -89,7 +83,7 @@ MyPromise.prototype.then = function(onResolve, onReject){
           } else {
             resolve(x);
           }
-        }catch(ex){
+        } catch(ex){
           reject(ex);
         }
       })
@@ -112,8 +106,8 @@ MyPromise.reject = function(){
 }
 MyPromise.all = function (promises) {
   return new MyPromise((resolve, reject) => {
-    let values = []
-    let count = 0
+    let values = [];
+    let count = 0;
     promises.forEach((promise, index) => {
       promise.then(value => {
         console.log('value:', value, 'index:', index)
@@ -134,21 +128,16 @@ MyPromise.race = function (promises) {
       });
   });
 }
-MyPromise.race = function(promises){
-  return new MyPromise((resolve, reject) => {
-    promises.forEach((promise) => {
-      promise.then(resolve, reject);
-    })
-  })
-}
-
 
 var promise = new MyPromise((resolve, reject) =>{
   resolve(4);
 })
-promise.then(
-  () => 5
-).then(val => {console.log(val)});
+promise.then(() => {
+  throw new Error('erorororo');
+}).then(val => {console.log(val)}).catch((val) => {
+  console.log(val);
+})
+
 
 
 

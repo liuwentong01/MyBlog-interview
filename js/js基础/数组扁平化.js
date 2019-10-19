@@ -18,5 +18,11 @@ console.log(res);
 
 //方法二
 var arr = [[1, 2], 3];
-console.log(arr.flat(Infinity)); //无奈，vscode不支持但是google浏览器是支持的
+console.log(arr.flat(Infinity)); //....vscode不支持但是google浏览器是支持的
 
+//方法三
+var arr = [[0, 1], [2, 3], [4,[5,6,7]]]
+function arrFlat(arr){
+    return arr.reduce((pre, cur) => pre.concat(Array.isArray(cur)? arrFlat(cur): cur) , [])
+}
+arrFlat(arr);

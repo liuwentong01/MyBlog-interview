@@ -3,47 +3,78 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=2">
-  <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <title>Document</title>
-  <style>
-    html{
-      height: 100%;
-      /* overflow: auto; */
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="author" content="">
+  <title>原生模拟 Vue 路由切换</title>
+  <style type="text/css">
+    .router_box,
+    #router-view {
+      max-width: 1000px;
+      margin: 50px auto;
+      padding: 0 20px;
     }
-    body{
-      height: 100%;
-    }
-    .box{
-      display: flex;
-      align-items: flex-end;
-      width: 100%;
-      height: 100%;
-    }
-    .item{
-      height: 100px;
-      border: 2px solid black;
-      background-color: red;
-      flex: 1
+
+    .router_box>a {
+      padding: 0 10px;
+      color: #42b983;
     }
   </style>
 </head>
 
 <body>
-  <!-- <div class="box">
-    <div class="item"></div>
-    <div class="item"></div>
-    <div class="item"></div>
-    <div class="item"></div>
-  </div> -->
-  <script>
-      document.body.style.background = 'red';
-      let i = 1
-      while (i < 1000000) {
-        i += 1
-        console.log(i);
-      }
-      document.body.style.background = 'blue'
+  <div class="router_box">
+    <a href="/home" class="router">主页</a>
+    <a href="/news" class="router">新闻</a>
+    <a href="/team" class="router">团队</a>
+    <a href="/about" class="router">关于</a>
+  </div>
+  <div id="router-view"></div>
+  <script type="text/javascript">
+    function Vue(parameters) {
+      let vue = {};
+      vue.routes = parameters.routes || [];
+      vue.init = function () {
+        document.querySelectorAll(".router").forEach((item, index) => {
+          item.addEventListener("click", function (e) {
+            let event = e || window.event;
+            event.preventDefault();
+            window.location.hash = this.getAttribute("href");
+          }, false);
+        });
+
+        window.addEventListener("hashchange", () => {
+          vue.routerChange();
+        });
+
+        vue.routerChange();
+      };
+      vue.routerChange = () => {
+        let nowHash = window.location.hash;
+        let index = vue.routes.findIndex((item, index) => {
+          return nowHash == ('#' + item.path);
+        });
+        if (index >= 0) {
+          document.querySelector("#router-view").innerHTML = vue.routes[index].component;
+        } else {
+          let defaultIndex = vue.routes.findIndex((item, index) => {
+            return item.path == '*';
+          });
+          if (defaultIndex >= 0) {
+            window.location.hash = vue.routes[defaultIndex].redirect;
+          }
+        }
+      };
+      vue.init();
+    }
+
+    new Vue({
+      routes: [{path: '/home',component: "1"}, 
+      {path: '/news', component: "2"}, 
+      {path: '/team', component: '3'}, 
+      {path: '/about', component: '4'}, 
+      {path: '*',redirect: '/team'}
+    ]});
   </script>
 </body>
 

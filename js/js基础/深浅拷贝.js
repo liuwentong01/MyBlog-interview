@@ -26,7 +26,7 @@ function deepCopy(obj){
     var result = obj instanceof Array ? [] : {};
     for(let i in obj){
       if(obj.hasOwnProperty(i)){
-        result[i] = typeof obj == 'object' ? deepCopy(obj[i]) : obj[i];
+        result[i] = typeof obj[i] == 'object' ? deepCopy(obj[i]) : obj[i];
       }
     }
   }
