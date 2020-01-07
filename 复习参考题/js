@@ -1,0 +1,472 @@
+/*
+*  diff算法， 虚拟dom， js 轮播图， dom拖拽，分页插件，大数，快排
+*/
+*闭包，JS 没有闭包的话会怎么样 
+*typeof 和 instanceof
+*js 的原型链，继承
+^*类有继承吗，如何实现
+^*前端方面问了js的类，类的继承
+*原型链？
+*js 的 bind、apply、call 有什么区别
+*var、let、const的区别
+*new 操作符原理（手动实现 new 给出思路）
+*箭头函数，箭头函数 this 问题，箭头函数是否可以被 new
+*promise 知道吗，手写一个 promise 怎么写（说思路）
+*promise.all 应用场景（将多个异步执行结果合并到一起）
+?promise 和 async/await 的区别
+*原生 DOM 拖拽
+*有没有考虑对图片处理的优化手段，说说常用的
+*防抖和节流
+实现无缝滑屏
+*浏览器渲染原理、回流与重绘  --> https://juejin.im/post/5a9923e9518825558251c96a  https://www.zhoulujun.cn/html/webfront/browser/webkit/2016_0506_7820.html
+*JS 单线程、EventLoop、宏队列、微队列
+*ES6 数组新增方法 (Array.of(),  Array.from()第二个参数传入函数是映射, ) 
+*ES6 箭头函数和普通函数区别（1.具有词法级(静态)的this绑定，2.this值不可改变，因此不能作为构造函数使用，3.没有arguments对象）
+promise、generator、async/await
+*JS 垃圾回收（https://juejin.im/post/5a6b3fcaf265da3e2c385375）
+*JS EventLoop
+*ES6 新特性
+知道装饰器吗
+*数组方法 map、filter、reduce
+*新数据结构 Set、Map
+*页面渲染 重绘与重排 页面加载如何优化
+小程序的富文本为什么选用 wxParse，富文本原理
+*图片有哪些格式，知道 WebP 格式的图片吗，图片的一些优化手段
+*图片懒加载原理
+知道 PWA 吗
+hybrid 技术
+Flutter 了解吗
+我现在有个需求，需要实现一个 web 端的微信，你想想该怎么实现
+怎么看待前后端分离思想，以及服务端渲染技术
+了解过设计模式吗？
+*前端页面路由的权限实现
+*后端怎么做鉴权的
+*每一次访问的时候在 KOA 里面是怎么实现 (后端鉴权) 的
+有考虑使用中间件的方式来做 (后端鉴权) 吗
+*追问，事件委托利用了事件的什么特性（事件的捕获和冒泡过程）
+*介绍下浏览器事件
+优化网页性能的话，你知道哪些方案？（开放性问题，我从服务器端静态文件到客户端首屏渲染都说了一些）
+追问，为什么需要合并请求（上一问我提到了合并请求来加快加载速度，这里我回答的是浏览器对单个域名的并发数是有限的，另外合并请求也可以加速文件下载，没有频繁的建立连接过程）
+Mvvm响应式原理？
+常见设计模式及其应用场景？
+浏览器兼容性？
+Symbol？作用？
+说一下js继承有哪几种，然后分别说一下具体实现以及原理
+*js作用域怎么来的？
+*说一说this。
+*es6中函数里的this问题
+*js基本数据类型
+*用了一个函数考了js的作用域
+*文了如何判断一个数组是数组，我答了（instanceof Array.isArray() 和用原型链）
+BOM 和 DOM的区别
+*js 的event-loop
+说一下思路，如何把一个图片的地址，传到服务器，并保存在服务器 ，  
+*js中的类数组
+能不能改写一个数组的push方法，不是重写，也不是新写，保持原来的逻辑之外，再添加一个consle.log（arguements）在控制台打印出来，比如pushA。在工作台把A打印出来，push什么就打印什么。原来的逻辑不能改？，         
+*判断浏览器类型
+*事件模型
+*冒泡？如何冒泡
+对象是怎么来的
+如何定义私有字段
+Javascript 检测Error的方式
+OS 进程的组成
+Javascript的 gc机制
+*javascript 有哪些异步的方式
+js正则，匹配邮箱和电话
+正则表达式匹配qq号
+用js中的正则表达式去掉两边的空格 
+*如何阻止冒泡
+
+
+
+
+
+
+
+
+
+
+
+---------------------------------------------------分割线（以上腾讯面试题）-----------------------------------------------------------
+
+先问了个event loop的，老问题，就console.log顺序
+this
+async
+数组的typeof是什么，如何判断数组，几种方法
+手撕个防抖
+编程题
+模拟判断一个堆栈，后面一个是不是前面一个的正确输出
+var validStack = function(inArr, outArr)
+盒模型
+css三角形
+跨域
+UDP和TCP是什么？  它们的区别
+UDP在什么场景会用到？
+进程和线程是什么?你是怎么理解的?
+说说block元素和in-line元素？ 二者的不同点和特征有哪些?
+扩展：img是行内元素吗？为什么可以设置宽高呢 （答：没了解过，估计是和img标签的src属性有关，小哥哥说的确和src属性有关，建议后续可以深入了解一下）
+怎么实现0.5px的线 移动端
+（scale方法）
+scale(0.5)  scale(2) scale(1) 分别是怎么样的 ，那scale(-1)呢
+【scale(x) 当x为负值时，整个是颠倒过来的】
+flex方法有用过吗（说有用过，就没细问了）
+说一下float和position
+清除浮动的多种方法
+对称加密和非对称加密的区别
+通信里模拟信号和数字信号是什么？区别？
+讲讲浮动和清除浮动
+盒子模型
+如何从URL中获取参数值
+数组API及其使用
+了解ES6什么特性
+知道怎么转换盒模型吗？
+position属性的取值
+面向对象——设计一个超市对象
+一家超市，一个出口，一个入口，多个收银台，可以提供微信、支付宝等支付手段
+数组去重
+随机算法
+数组降维，去重（一行代码KO）
+.如何处理页面中的请求与点击事件不同步的显示问题？
+如何解决异步请求的竞态问题？
+打印二叉树的左视图？
+自我介绍
+进程线程是什么，进程间的通信有哪些方法
+计算机网络了解吗？OSI七层模型？选择一个比较熟悉的层，介绍一下有哪些协议
+DNS的运行过程，DNS性能优化有哪些方法
+https协议加密具体过程
+垃圾回收机制
+写代码：给一个淘宝的页面，写一下大概如何布局
+写代码，DOM操作将所有页面元素存为一个{key:count}的结构，即统计在页面中每种元素的数量，将元素根据count进行排序。
+https和http区别，对称加密和非对称加密区别
+http1.0和http1.1和http2.0
+数据库第一范式，第二范式，第三范式
+CSS盒模型（box-sizing属性）
+写代码：多维数组展为一维数组（如：[[1,2],3,[4,5,6],[7,8]]->[1,2,3,4,5,6,7,8]）
+写代码：自己实现一个instanceof
+对于原型链的理解，new的过程中发生了什么，写代码：自己实现一个new
+Vue双向绑定的原理
+em和rem的区别
+CSS雪碧图是什么
+重绘和重排，哪些属性会触发重绘，哪些属性会触发重排
+ES6中let,const,var的区别
+map,forEach的区别
+跨域有哪些方法
+项目中有哪些印象深刻的点
+多维数组展开成一维数组，分析算法的时间复杂度，用es6的什么方法可以实现（flat）
+写代码：数组去重有哪些方法
+写代码：用闭包实现add()函数，第n次调用的时候输出n
+this的指向问题：
+var a=2;
+var obj={
+ a:1,
+ b:this.a,
+ fun:function(){
+     console.log(this.b);
+ }
+}
+输出结果为2，分析原因
+写代码：实现call函数
+TCP三次握手，为什么是三次
+http请求包括什么，http应答包括什么
+了解哪些状态码
+输入url到页面出现发生了什么
+浏览器渲染机制
+什么是同源策略（如何判断是否同源），CORS策略
+CSS实现三角形，箭头
+CSS垂直居中的方法
+CSRF和XSS是什么，如何预防
+localStorage和sessionStorage区别，localStorage最大存储量
+CORS机制
+Chrome调试断点如何设置
+TCP三次握手，为什么不是四次，为什么不是两次
+浏览器渲染机制，js阻塞加载
+js动态加载，eval()方法
+写代码：请求一个require.js文件，并统计文件中'require'的数量，分析时间复杂度，如何优化
+为什么想做前端，平时如何学习前端，知不知道社区里有哪些大神，讲讲最近看的一些前端相关的知识
+自己对前端未来发展方向是什么
+认为自己的优点和缺点是什么
+对美团的认识，为什么想加入美团
+如何实现一个轮播图效果
+CSS3新特性了解哪些
+怎么学习Vue的，怎么学习一个新的框架
+平时怎么了解新技术
+会PS吗？ 我：？？？？
+你觉得如果在一个公司里做前端，需要和哪些人合作
+了解es6的那些特性
+js闭包是什么，什么是内存泄漏，如何解决内存泄漏问题
+js垃圾回收机制
+js基本数据类型（包括es6新增的Symbol）
+原生ajax原理，ajax和fetch的区别，fetch支持http的哪些方法
+option方法可以发送那些内容
+CORS原理
+网络安全了解哪些？如何预防sql注入，XSS，CSRF
+w3c标准盒子模型和IE模型有什么区别
+CSS的display有哪些取值
+iso七层模型，每一层模型的经典协议
+http1.0和http1.1和http2.0的区别
+es6新增的数组方法
+数组的reduce方法
+js中找到一个数组最大值的方法，分析复杂度
+MVC和MVVM的区别，MVVM的优点
+flex布局用在哪些场景下
+如何适配不同的屏幕
+从键盘上键入一个字符到显示到电脑屏幕上发生了什么
+计算机存储中的堆和栈的区别
+数据结构数组和链表的区别
+HTTP状态码有哪些
+cookie,localStorage,sessionStorage的区别
+js相关：
+es6的let,const和var区别，const绑定的对象能不能修改属性值
+Vue数组双向绑定的原理，数组中没有get和set方法，应该如何实现数据劫持
+event-loop原理，宏任务，微任务有哪些
+CSS相关：
+如何实现水平垂直居中（元素定长和不定长）
+position有哪些属性，有什么区别，除了定位上的不同还有什么区别
+webpack怎么用，实现机制
+Vuex相关
+一个网站图片很多，加载很慢，应该如何优化：DOMContentLoad,图片懒加载，CDN
+Vue的watch和computed区别
+CSS选择器优先级
+es5实现继承
+闭包的应用场景
+es5中的模块化,CommonJS等
+setTimeout和Promise的区别，如何实现Promise
+一个页面加载不出来可能是那些方面的原因
+HTTP持续连接实现原理
+了解哪些设计模式
+jQ选择器的实现原理
+Vue中虚拟DOM解决什么问题，原理？
+快排的原理，为什么比冒泡排序快
+归并排序的原理
+写代码：写一下归并排序合并两个有序数组的过程
+写代码：求多个数组的交集（用归并的思想进行优化）
+写代码：递归实现1000!（尾递归调用优化）
+栈和链表的联系和区别，写代码：用链表实现栈
+项目相关，遇到了什么难题
+实现柯里化，foo(1)(2)(3)(4)
+实现一个function A,使得
+a1=new A();
+a2=new A();
+console.log(a1.value);//1
+console.log(a2.value);//2
+即每new一次value加1
+http协议是什么，请求和响应的构成，如何区分一个请求的头部和实体（中间有一个空行）
+http有哪些方法，为什么要有这些方法（语义化）
+状态码3开头的有哪些，浏览器收到301和302怎么做，304用在哪些场景
+cookie相关，cookie用在什么场景，cookie有哪些性质
+三列布局的实现方式列出几种来，我就说出三种flex float inline-block
+flex 中的 jusitify-content是什么意思
+cookie和session的区别（我说了我的项目中用了sessionStorage）
+列举es6的新特性，let const promise generator class 方法声明简写 解构赋值·····
+在墨客文档上出的题让我做的解构赋值的题比较简单{a: toString} = 123 {toString: a} = 123说出模式匹配来应该就没问题
+封装一个函数能够把url中的query部分转化成query对象，注意审题我这里就没仔细看题整体不难注意用正则或者str.replace替换字符串达到题目要求
+栈和队列的区别
+封装一个方法实现栈不能用数组（提示：可以用链表的数据结构通过指针来倒序输出）
+为什么构造函数的方法要放在prototype里边为什么不直接用this.的方式声明，因为prototype占用一个存储空间实例通过proto指针指向prototype，可以减少内存占用减少不必要的开销
+没有问问题的环节 注意代码整
+我简历中写了了解web安全所以问我对XSS和CSRF哪个比较熟悉，我对CSRF中的cookie不太熟悉所以说的XSS然后就问我XSS攻击方式防御手段，H5中哪些标签会被XSS利用，如何处理要展示js代码的部分（例如csdn中的md编辑器）
+一个代码题，要实现秒杀倒计时的功能，一开始给我一段错误代码，（vue的代码）用的computed属性主要考对计算属性是否熟练，要知道计算属性监控的是哪一部分的属性，之后让我改正。这个还是比较简单的。
+根据这个代码题又延伸出为什么两个计时器会同时计时，先问的js是如何做到异步的，js的多线程是怎么实现的，然后才问的计时器的原理，因为js是单线程所以要通过浏览器其他线程的辅助，比如ui线程、事件线程、计时器线程等等，然后问的计时器线程应该也是单线程如何让两个计时器同时开始计时的。
+然后有考的一个代码题for循环里每次绑定一个点击事件最后问输出这个和for循环里放一个定时器是一个原理都是最后输出len（长度）比较简单就不多说了。
+之后有封装一个node的Emiter就是on和emit方法，因为我说我看过js设计模式所以问得我这个观察者模式。
+因为我看了js高性能问得我性能方面如何优化。
+vue的插件机制的应用，举例。
+在学前端的过程中遇到的比较难的问题（已解决的），我说的async await的原理因为我在看《你不知道的JavaScript》的时候看到promise和generator发现两者结合合asnyc和await很像然后研究源码的时候遇到的问题。
+最后让我问他问题，我问的react的双向数据绑定原理和vue的双向数据绑定原理。
+问了下css水平，垂直居中
+回流与重绘
+js的继承
+闭包以及其应用
+Vue的原理
+xss
+跨域问题
+有没有使用过css3动画，介绍一下,怎么做，关键是怎么做的CSS
+单行文本溢出，多行文本溢出把代码实现写出来
+bfc布局是什么
+js类型，封装一个类型鉴定函数
+闭包，平时在哪用到？  立即执行函数解决闭包中访问变量的问题
+事件轮训机制
+原生js实现bind函数
+一个函数，然后让你说他们的值是多少，为什么，预编译，严格模式，作用域链
+浏览器渲染原理
+如何实现在图片被加载之前的占位符一个image，宽高比16:9
+H5中边框为1px的设置
+多行或单行省略
+.div 和div > div > div的优先级
+动画相关
+post和put的区别是什么？
+Cookie中的操作以及httponly
+重绘和重排
+ssr和前后端分离的区别
+h5兼容问题
+list的无限滚动---节流
+处理跨域的方法
+http缓存的了解--强缓存和协商缓存
+css中垂直居中
+align-center中ios8的问题-webkit-align-item: center
+rem的理解
+算法：数组中map和reduce，如何用reduce实现map
+算法：打平数组和规定深度的打平数组
+实现一个构造函数 new的时候每次加一
+计算机网络tcp与udp区别， tcp拥塞机制， tcp三次握手， 四次挥手
+react setstate为什么是异步的
+react 性能优化
+知不知道css性能优化
+【腾讯】腾讯 前端 一面 凉经 https://www.nowcoder.com/discuss/196574
+【腾讯】PCG前端暑期实习面经(已拿offer) https://www.nowcoder.com/discuss/197801
+【美团】美团 前端 实习生 一面 https://www.nowcoder.com/discuss/196359
+【亚信科技】实习经验分享|亚信科技-web前端实习生 https://www.nowcoder.com/discuss/196122
+【4399】4399 web 后台 面经 https://www.nowcoder.com/discuss/195072
+【字节跳动】头条前端实习三面（offer） https://www.nowcoder.com/discuss/195063
+【滴滴】滴滴前端面经 https://www.nowcoder.com/discuss/193592
+【阿里-高德】阿里高德地图前端一面面经 https://www.nowcoder.com/discuss/193790
+【美团】美团春招前端开发实习生面经！（已拿offer） https://www.nowcoder.com/discuss/193674
+【美团】记春招最后的面试--美团实习前端面经（含1-3面） https://www.nowcoder.com/discuss/193764
+【腾讯】等待第三面，腾讯csig前端 https://www.nowcoder.com/discuss/193040
+【阿里】【前端面经】阿里口碑复试 https://www.nowcoder.com/discuss/192240
+【美团】美团前端实习一二面 面筋 https://www.nowcoder.com/discuss/191069
+【美团】美团前端一二面经 https://www.nowcoder.com/discuss/189860
+【阿里、蘑菇街、腾讯、阿里】春招回馈贴，已拿阿里offer，附蘑菇街、腾讯、阿里前端面经 https://www.nowcoder.com/discuss/189241
+【蘑菇街、阿里、腾讯】春招回馈贴，已拿阿里offer，附蘑菇街、腾讯、阿里前端面经 https://www.nowcoder.com/discuss/189241
+【深信服】深信服前端实习电话面 https://www.nowcoder.com/discuss/188705
+【阿里、度小满、腾讯、字节跳动、爱奇艺百度】前端上岸面经总结 https://www.nowcoder.com/discuss/188320
+【腾讯】腾讯微信事业群前端一面 https://www.nowcoder.com/discuss/188242
+【小米】新鲜出炉的小米前端一面凉经 https://www.nowcoder.com/discuss/188151
+【阿里】阿里前端实习生面经 https://www.nowcoder.com/discuss/186170
+【阿里】阿里前端实习面经，第四面很多不会，心凉透了 https://www.nowcoder.com/discuss/186956
+【网易】[网易云音乐前端实习面试]一面 https://www.nowcoder.com/discuss/186670
+【星环科技、招银、银联、华为、工商银行、浦发、CVTE】春招总结，附面经 https://www.nowcoder.com/discuss/186241
+【蚂蚁】[阿里-蚂蚁金服-杭州前端实习] 新鲜的大面经 https://www.nowcoder.com/discuss/185873
+【携程、招行】【前端面经】携程（offer）、 招行卡中心一面（终面鸽了） https://www.nowcoder.com/discuss/185710
+【字节跳动】字节跳动（抖音部门）前端实习生一面 https://www.nowcoder.com/discuss/185569
+【字节跳动、拼多多】春招前端面经(字节跳动3面+拼多多2面) https://www.nowcoder.com/discuss/185591
+【阿里】七面阿里前端全过程，上岸天猫超市（ps.如何拒腾讯？ https://www.nowcoder.com/discuss/184655
+【阿里】阿里收意向了！！！，分享一波面筋回馈牛友 https://www.nowcoder.com/discuss/184575
+【蚂蚁】Get蚂蚁offer https://www.nowcoder.com/discuss/184623
+【腾讯】第二个offer， 腾讯前端 https://www.nowcoder.com/discuss/185129
+【腾讯、阿里、字节跳动】感谢牛客前端春招实习面经 https://www.nowcoder.com/discuss/184513
+【阿里】阿里前端一面...顺便求腾讯别卡复试了 https://www.nowcoder.com/discuss/183908
+【腾讯】人生的处女面 https://www.nowcoder.com/discuss/184000
+【字节跳动】字节跳动春招面经(武汉前端全职，终于拿到 offer...) https://www.nowcoder.com/discuss/184103
+【360企业】360前端星计划（360企业安全）面经 https://www.nowcoder.com/discuss/183514
+【蘑菇街】距离时尚目的地还差一个offer！！！ https://www.nowcoder.com/discuss/183303
+【蘑菇街】蘑菇街 暑期实习 前端面经 https://www.nowcoder.com/discuss/183266
+【腾讯】还愿 前端 面试体会 https://www.nowcoder.com/discuss/183355
+【网易】网易雷火 暑期实习 前端面经 https://www.nowcoder.com/discuss/183242
+【七牛云】七牛云+前端实习+一面+热腾腾的凉经 https://www.nowcoder.com/discuss/182692
+【腾讯】4.23腾讯前端一面面经 https://www.nowcoder.com/discuss/182859
+【腾讯】腾讯 暑期实习 前端面经 https://www.nowcoder.com/discuss/183213
+【腾讯】腾讯前端复试面经 https://www.nowcoder.com/discuss/182718
+【腾讯】腾讯暑期前端实习二面 csig https://www.nowcoder.com/discuss/183232
+【网易】网易雷火 暑期实习 前端面经 https://www.nowcoder.com/discuss/183242
+【Shopee】shopee凉经 https://www.nowcoder.com/discuss/182239
+【阿里】阿里电话一面凉经（前端） https://www.nowcoder.com/discuss/182336
+【京东】实力吐槽京东! https://www.nowcoder.com/discuss/182553
+【拼多多】拼多多 前端 一面面经 https://www.nowcoder.com/discuss/182577
+【字节跳动】头条19届前端四面面筋 https://www.nowcoder.com/discuss/182536
+【eBay】eBay前端上岸面筋 https://www.nowcoder.com/discuss/181091
+【百度】百度前端实习热面一碗 https://www.nowcoder.com/discuss/181279
+【蘑菇街】蘑菇街前端一面凉经 https://www.nowcoder.com/discuss/181112
+【腾讯】腾讯！！！三进二出腾讯（你若安好，备胎到老）前端实习面经 https://www.nowcoder.com/discuss/181278
+【腾讯】腾讯暑期实习前端一面 https://www.nowcoder.com/discuss/181656
+【腾讯】腾讯正式批前端一面...求好运 https://www.nowcoder.com/discuss/181785
+【图森未来】图森未来 前端实习 面经 + “渣男”的自我吐槽 https://www.nowcoder.com/discuss/181377
+【微众银行】微众银行前端二面面经 https://www.nowcoder.com/discuss/180848
+【字节跳动】头条前端三轮技术面面经 https://www.nowcoder.com/discuss/181488
+【字节跳动】字节跳动 今日头条 前端 面经合集（为了方便别人和自己的） https://www.nowcoder.com/discuss/180861
+【字节跳动】字节跳动前端实习面经 https://www.nowcoder.com/discuss/181272
+【字节跳动】字节跳动前端一面凉 https://www.nowcoder.com/discuss/181299
+【作业帮】作业帮前端实习面试分享 https://www.nowcoder.com/discuss/181269
+【阿里】阿里前端 暑期实习 笔试+六面经历 https://www.nowcoder.com/discuss/180007
+【拼多多】pdd前端远程面经(一二面),攒一波人品 https://www.nowcoder.com/discuss/180038
+【腾讯、北森、蘑菇街】前端面筋，腾讯+北森+蘑菇街 https://www.nowcoder.com/discuss/180095
+【度小满】度小满前端实习岗位面经攒攒人品，好运好运，过过过🙏🙏🙏 https://www.nowcoder.com/discuss/179378
+【度小满、网易】前端 度小满一、二面，网易一面面经 https://www.nowcoder.com/discuss/179509
+【蚂蚁金服】蚂蚁面完hr面备胎第21天，至今0offer，发波面经攒人品 https://www.nowcoder.com/discuss/179458
+【蘑菇街】蘑菇街前端一面面筋 https://www.nowcoder.com/discuss/178606
+【阿里】阿里巴巴 飞猪 旅行 前端面经 凉凉 2019年春实习生 https://www.nowcoder.com/discuss/177328
+【招行】招行信用卡前端面经 https://www.nowcoder.com/discuss/177273
+【字节跳动】记一次字节跳动前端面试，已拿offer https://www.nowcoder.com/discuss/177482
+【字节跳动、腾讯、阿里、拼多多、搜狐】前端实习面经：头条、腾讯、阿里、拼多多、搜狐（一） https://www.nowcoder.com/discuss/177838
+【度小满】度小满前端实习凉经 https://www.nowcoder.com/discuss/176068
+【阿里】【前端】 阿里妈妈一面 四面面经（包括交叉面） https://www.nowcoder.com/discuss/175629
+【欢聚时代】欢聚时代YY 前端面经 https://www.nowcoder.com/discuss/176247
+【蘑菇街】蘑菇街前端二面 https://www.nowcoder.com/discuss/176409
+【蘑菇街】4月10日蘑菇街前端面经 https://www.nowcoder.com/discuss/175824
+【蘑菇街】4-8 蘑菇街前端 16 分钟玄学一面 https://www.nowcoder.com/discuss/175761
+【深信服、CVTE、腾讯、】20春招总结（已上岸，去卖q币了） https://www.nowcoder.com/discuss/174864
+【水滴】水滴互助前端实习面经 https://www.nowcoder.com/discuss/175472
+【腾讯】腾讯游戏前端一面 https://www.nowcoder.com/discuss/175536
+【字节跳动】字节跳动，前端面试 https://www.nowcoder.com/discuss/174632
+【腾讯】已OFFER 腾讯提前批 Web前端 20届暑期实习生面经 https://www.nowcoder.com/discuss/174001
+【阿里】小菜鸡的阿里前端面经 光速凉凉 https://www.nowcoder.com/discuss/173479
+【阿里、深信服、搜狐畅游、】我的春招结束了（前端）这个真的是菜鸟 https://www.nowcoder.com/discuss/174501
+【度小满】度小满玄学前端 https://www.nowcoder.com/discuss/172769
+【蘑菇街】蘑菇街前端一面面筋 https://www.nowcoder.com/discuss/172790
+【蚂蚁】蚂蚁金服前端实习面经 https://www.nowcoder.com/discuss/172124
+【字节跳动】喜提头条offer 春招圆满结束 发一波面经 https://www.nowcoder.com/discuss/172245
+【腾讯】腾讯Web前端神转 https://www.nowcoder.com/discuss/171450
+【阿里】2020前端实习生阿里电话一面35分钟（3.31，10点） https://www.nowcoder.com/discuss/171060
+【阿里】阿里 前端 二面 面经 https://www.nowcoder.com/discuss/171700
+【腾讯】腾讯提前批前端面经分享【Offer已拿到】 https://www.nowcoder.com/discuss/171920
+【腾讯、阿里、字节跳动】前端春招实习面经 https://www.nowcoder.com/discuss/171091
+【喜马拉雅】喜马拉雅前端一面 https://www.nowcoder.com/discuss/171327
+【字节跳动】头条前端一面 https://www.nowcoder.com/discuss/171320
+【字节跳动】字节跳动 前端 三面面经 https://www.nowcoder.com/discuss/171705
+【字节跳动】2019 字节跳动春招 web前端面试题 一面 https://www.nowcoder.com/discuss/170779
+【阿里】阿里前端面经 攒个人品 https://www.nowcoder.com/discuss/170335
+【阿里】2020前端实习生阿里电话一面35分钟（3.31，10点） https://www.nowcoder.com/discuss/171060
+【滴滴】第一次面试，滴滴前端实习一面 https://www.nowcoder.com/discuss/169998
+【蚂蚁金服】蚂蚁金服 暑期实习 前端面经 https://www.nowcoder.com/discuss/170709
+【腾讯】面筋 前端实习 2019 秋招 腾讯微信事业群 https://www.nowcoder.com/discuss/169824
+【腾讯】腾讯前端面试一二面面筋（已经凉凉） https://www.nowcoder.com/discuss/170603
+【腾讯】微信前端开发暑假实习生一面 https://www.nowcoder.com/discuss/170327
+【腾讯】前端春招实习面经 https://www.nowcoder.com/discuss/171091
+【腾讯】腾讯三次技术面面经 https://www.nowcoder.com/discuss/170845
+【网易】网易有道前端实习生 https://www.nowcoder.com/discuss/169901
+【字节跳动】字节跳动春招前端三轮面经 https://www.nowcoder.com/discuss/167553
+【字节跳动】字节跳动一面 2019 秋招聘前端实习 https://www.nowcoder.com/discuss/169795
+【字节跳动】字节跳动前端实习一面二面HR面面经 https://www.nowcoder.com/discuss/170549
+【字节跳动】字节跳动 北京前端 实习面经 和求职季经历 https://www.nowcoder.com/discuss/170834
+【滴滴】滴滴 地图事业部 前端实习一面 https://www.nowcoder.com/discuss/169271
+【腾讯】腾讯前端实习面经 https://www.nowcoder.com/discuss/169437
+【远景】远景 二面 前端 面经 https://www.nowcoder.com/discuss/169387
+【字节跳动】头条前端面经，求好运 https://www.nowcoder.com/discuss/169575
+【阿里】20届实习：阿里面经一面（凉凉） https://www.nowcoder.com/discuss/167147
+【冰鉴科技】19校招 冰鉴科技 前端面经 https://www.nowcoder.com/discuss/168286
+【蚂蚁金服】记一次蚂蚁金服前端实习生一面面经（攒人品） https://www.nowcoder.com/discuss/167637
+【拼多多】拼多多前端一面（面经攒人品） https://www.nowcoder.com/discuss/167977
+【拼多多、头条、shopee、】互联网寒冬一年经验前端历险记 https://www.nowcoder.com/discuss/168716
+【平安科技】平安科技上海前端面经 https://www.nowcoder.com/discuss/167630
+【网易】蚂蚁简历面，网易有道现场面凉经 https://www.nowcoder.com/discuss/168678
+【字节跳动】头条前端三面面经 https://www.nowcoder.com/discuss/167555
+【4399】4399前端一面凉经 https://www.nowcoder.com/discuss/165612
+【CVTE】cvte现场一面 https://www.nowcoder.com/discuss/158344
+【CVTE】CVTE2019春招前端二面凉经 https://www.nowcoder.com/discuss/158786
+【CVTE】cvte前端一面成都现场面筋 https://www.nowcoder.com/discuss/160340
+【CVTE】CVTE春招前端面经(等待Offer中) https://www.nowcoder.com/discuss/162121
+【CVTE】CVTE暑期实习前端一面 https://www.nowcoder.com/discuss/162726
+【OPPO】OPPO前端面经 https://www.nowcoder.com/discuss/158987
+【OPPO】oppo前端一面面经 https://www.nowcoder.com/discuss/159529
+【shopee】shopee视频一面 https://www.nowcoder.com/discuss/166025
+【阿里】阿里前端一面面经（攒攒人品） https://www.nowcoder.com/discuss/162864
+【阿里】阿里前端一面 https://www.nowcoder.com/discuss/163424
+【阿里】阿里前端暑期实习一面面经（感觉凉凉 https://www.nowcoder.com/discuss/164374
+【阿里】阿里天猫一面面筋 https://www.nowcoder.com/discuss/166581
+【阿里】阿里前端一面 https://www.nowcoder.com/discuss/166810
+【阿里】前端 阿里巴巴一面面筋 https://www.nowcoder.com/discuss/166635
+【阿里】阿里天猫前端一面面筋 https://www.nowcoder.com/discuss/166581
+【阿里、腾讯、深信服】阿里前端一面，腾讯前端二面视频面（附带深信服？。。。） https://www.nowcoder.com/discuss/162963
+【阿里巴巴】【阿里前端6面面经】春招 - 面经 https://www.nowcoder.com/discuss/162133
+【百度】百度前端电话一面 https://www.nowcoder.com/discuss/164792
+【百度】前端百度一面凉经 https://www.nowcoder.com/discuss/166030
+【菜鸟】菜鸟网络前端一面面经 https://www.nowcoder.com/discuss/166697
+【海康】海康的前端笔试好简单.. https://www.nowcoder.com/discuss/163345
+【吉比特】吉比特视频一面 https://www.nowcoder.com/discuss/164715
+【京东】前端实习要求也很高的！ https://www.nowcoder.com/discuss/161756
+【蚂蚁金服】蚂蚁金服实习前端一面 https://www.nowcoder.com/discuss/165988
+【蚂蚁金服】蚂蚁前端一面挂经 https://www.nowcoder.com/discuss/165822
+【美团、字节跳动、网易】你需要的前端面经。美团、字节跳动 offer，网易正在等结果 https://www.nowcoder.com/discuss/163165
+【三七互娱】37前端笔试 https://www.nowcoder.com/discuss/159315
+【深信服】深信服春招前端一二面、HR 面经 https://www.nowcoder.com/discuss/165948
+【搜狐】2019搜狐春招前端实习现场面经 https://www.nowcoder.com/discuss/163541

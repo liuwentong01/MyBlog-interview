@@ -1,0 +1,68 @@
+【1】两列布局   三列布局   水平居中   垂直居中
+https://juejin.im/post/5aa252ac518825558001d5de
+
+当元素不存在width属性或则width:auto的时候,负值margin会增加元素的宽度.
+(注意:这仅仅是在元素不存在width属性或则width属性默认的时候,如果有宽度设置,margin-left和margin-right为负值时,会发生位移.)
+
+
+【2】闭包
+https://segmentfault.com/a/1190000006875662
+@简单讲，闭包就是指有权访问另一个函数作用域中的变量的函数。
+MDN  闭包是一种特殊的对象。它由两部分构成：函数，以及创建该函数的环境。
+环境由闭包创建时在作用域中的任何局部变量组成。
+
+@创建闭包最常见方式，就是在一个函数内部创建另一个函数。闭包的作用域链包含着它自己的作用域，以及包含它的函数的作用域和全局作用域。
+通常，函数的作用域及其所有变量都会在函数执行结束后被销毁。但是，在创建了一个闭包以后，这个函数的作用域就会一直保存到闭包不存在为止。
+
+@闭包只能取得包含函数中任何变量的最后一个值，这是因为闭包所保存的是整个变量对象，而不是某个特殊的变量。
+@@用途
+0.应用闭包的主要场合是：设计私有的方法和变量。
+1.匿名函数最大的用途是创建闭包，并且还可以构建命名空间，以减少全局变量的使用。从而使用闭包模块化代码，减少全局变量的污染。
+
+【3】typeof intanceof  isPrototypeOf
+https://juejin.im/post/5b0b9b9051882515773ae714
+【4】原型链与继承  new操作符原理
+红宝书原型链与继承  https://juejin.im/post/58f94c9bb123db411953691b
+new  https://juejin.im/post/5c7b963ae51d453eb173896e
+【5】bind  apply call
+  小白专用：https://juejin.im/post/59bfe84351882531b730bac2
+  @call() 方法在使用一个指定的 this 值和若干个指定的参数值的前提下调用某个函数或方法
+  @当 bind 返回的函数作为构造函数的时候，bind 时指定的 this 值会失效，但传入的参数依然生效。
+【6】var let const
+【】arguments
+@arguments类数组对象  如ArrayLike = {0:'name', 1:'age', 2:'sex'}
+通过Array.prototype.slice.call(ArrayLike,0)可以将类数组转化为数组。
+@传入的参数，实参和 arguments 的值会共享，当没有传入时，实参与 arguments 值不会共享
+除此之外，以上是在非严格模式下，如果是在严格模式下，实参和 arguments 是不会共享的。
+
+【】创建对象的多种方式，继承的多种方式
+深入系列14， 15篇；
+【】promise以及手动实现 https://juejin.im/post/5aa7868b6fb9a028dd4de672
+Promise/A+规范 https://malcolmyu.github.io/2015/06/12/Promises-A-Plus/#note-4
+Q:什么是promise?
+A:目前比较流行Javascript异步编程解决方案之一
+
+Q:几种常见的异步编程方案
+A:回调函数， 事件监听， 发布/订阅， promise(generator, async/await也属于promise);
+
+Q:(回调地狱)传统异步编程方案问题
+A:代码逻辑书写顺序与执行顺序不一致，不利于阅读与维护。
+异步操作的顺序变更时，需要大规模的代码重构。
+回调函数基本都是匿名函数，bug 追踪困难。
+回调函数是被第三方库代码（如上例中的 ajax ）而非自己的业务代码所调用的，造成了 IoC 控制反转。
+【】toString();
+@@@Object.prototype.toString.call();可以用来检测object对象的类型 返回的类型首字母均大写，而typeof返回的类型首字母均是小写。
+@@@Number.prototype.toString(radix);返回基于radix的字符串表示。返回字符串
+@@@Array.prototype.toString(); 返回数组的字符串表示。
+@@@Boolean.prototype.toString();返回true or false
+
+
+
+
+
+
+
+
+
+
+
