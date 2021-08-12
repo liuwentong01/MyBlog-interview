@@ -5,7 +5,7 @@ function instanceOf(x, y){
     if(x.__proto__ === y.prototype){
       return true;
     }
-    x.__proto__ = x.__proto__.__proto__;
+    x = x.__proto__;
   }
   return false;
 }

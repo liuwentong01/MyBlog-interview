@@ -1,22 +1,4 @@
-function jsonp({url, params, callback}){
-  return new Promise((resolve, reject) => {
-    let script = document.createElement('script');
-    window[callback] = function (data){
-      resolve(data);
-      document.body.removeChild(script);
-    }
-    params = {...params, callback};
-    let args = [];
-    for(key in args){
-      args.push(`${key}=${args[key]}`);
-    }
-    script.scr = `${url}?${args.join('&')}`;
-    document.appendChild(script);
-  })
-}
-
-
-// index.html
+//不用手写
 function jsonp({ url, params, callback }) {
   return new Promise((resolve, reject) => {
     let script = document.createElement('script')

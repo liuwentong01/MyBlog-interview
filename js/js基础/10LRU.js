@@ -1,4 +1,4 @@
-var LRUCache = class {
+class LRUCache {
   constructor(capacity) {
     this.cache = new Map();
     this.capacity = capacity;
@@ -24,4 +24,4 @@ var LRUCache = class {
     }
     cache.set(key, value);
   }
-};
+}

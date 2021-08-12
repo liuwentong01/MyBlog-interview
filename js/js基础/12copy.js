@@ -19,26 +19,25 @@ let obj = { a: 1, b: { x: 3 } };
 JSON.parse(JSON.stringify(obj));
 
 //2:递归拷贝
-function deepCopy(obj){
-  if(typeof obj !== 'object'){
+function deepCopy(obj) {
+  if (typeof obj !== "object") {
     var result = obj;
-  } else{
+  } else {
     var result = obj instanceof Array ? [] : {};
-    for(let i in obj){
-      if(obj.hasOwnProperty(i)){
-        result[i] = typeof obj[i] == 'object' ? deepCopy(obj[i]) : obj[i];
+    for (let i in obj) {
+      if (obj.hasOwnProperty(i)) {
+        result[i] = typeof obj[i] == "object" ? deepCopy(obj[i]) : obj[i];
       }
     }
   }
   return result;
 }
 
-
 /**
-* deep clone
-* @param  {[type]} parent object 需要进行克隆的对象
-* @return {[type]}        深克隆后的对象
-*/
+ * deep clone
+ * @param  {[type]} parent object 需要进行克隆的对象
+ * @return {[type]}        深克隆后的对象
+ */
 const clone = parent => {
   // 维护两个储存循环引用的数组
   const parents = [];
@@ -46,18 +45,18 @@ const clone = parent => {
 
   const _clone = parent => {
     if (parent === null) return null;
-    if (typeof parent !== 'object') return parent;
+    if (typeof parent !== "object") return parent;
 
     let child, proto;
 
-    if (isType(parent, 'Array')) {
+    if (isType(parent, "Array")) {
       // 对数组做特殊处理
       child = [];
-    } else if (isType(parent, 'RegExp')) {
+    } else if (isType(parent, "RegExp")) {
       // 对正则对象做特殊处理
       child = new RegExp(parent.source, getRegExp(parent));
       if (parent.lastIndex) child.lastIndex = parent.lastIndex;
-    } else if (isType(parent, 'Date')) {
+    } else if (isType(parent, "Date")) {
       // 对Date对象做特殊处理
       child = new Date(parent.getTime());
     } else {
