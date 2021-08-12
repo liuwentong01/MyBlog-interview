@@ -18,13 +18,11 @@
           document.body.removeChild(script);
         };
         params = { ...params, callback }; // wd=b&callback=show ES六对象字面量语法，可省略值
-        console.log(params);
         let arrs = [];
         for (let key in params) {
           arrs.push(`${key}=${params[key]}`);
         }
         script.src = `${url}?${arrs.join("&")}`;
-        console.log(script.src);
         document.body.appendChild(script);
       });
     }
@@ -34,7 +32,6 @@
       params: { wd: "Iloveyou", yd:'youloveme' },
       callback: "show"
     }).then(data => {
-      console.log(data);
     });
   
   </script>

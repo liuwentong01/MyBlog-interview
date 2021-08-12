@@ -10,3 +10,6 @@ function throttle(fn, wait) {
     }
   };
 }
+
+
+window.addEventListener('scroll', throttle(fn, 500))

@@ -12,8 +12,10 @@ function debounce(fn, wait, flag) {
       if (callNow) fn.apply(self, args);
     } else {
       timer = setTimeout(() => {
-        fn.apply(self, args);
+        fn.apply(self, args); // 为了让fn函数里this拿到该dom
       }, wait);
     }
   };
 }
+
+window.addEventListener('scroll', debounce(fn, 500, false))

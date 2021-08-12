@@ -13,11 +13,11 @@ class EventEmitter {
   emit(type, ...args) {
     this._events[type] && this._events[type].forEach((cb) => cb(...args));
   }
-  once(type, hanlder) {
+  once(type, handler) {
     this.on(type, (...args) => {
-      hanlder(...args);
+      handler(...args);
       this.off(type);
-    });
+    })
   }
 }
 
@@ -26,5 +26,7 @@ emitter.once("ages", (age) => {
   console.log(age);
 });
 emitter.emit("ages", 15);
-emitter.on("focu", (state) => console.log(state));
-emitter.emit("focu", "xxx", "yyy");
+emitter.emit("ages", 16);
+emitter.on("focus", (state) => console.log(state));
+emitter.emit("focus", "xxx", "yyy");
+emitter.emit("focus", "xxx", "yyy");

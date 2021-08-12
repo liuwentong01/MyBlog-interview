@@ -21,7 +21,7 @@ function sayName(name, age) {
     value: this.value,
   };
 }
-sayName.call0(v, "zhangsan", 33);
+console.log(sayName.call0(v, "zhangsan", 33));
 
 /*** ****************************apply的实现********************************************************/
 Function.prototype.apply0 = function (context, arr) {
@@ -35,12 +35,12 @@ Function.prototype.apply0 = function (context, arr) {
   delete context.func;
   return res;
 };
-var v = {
-  value: "haha",
-};
-function sayValue() {
-  console.log(this.value);
-}
-sayValue.apply0(v);
+// var v = {
+//   value: "haha",
+// };
+// function sayValue() {
+//   console.log(this.value);
+// }
+// sayValue.apply0(v);
 
 /**简易写法 */
