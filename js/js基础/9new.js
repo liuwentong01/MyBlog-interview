@@ -1,24 +1,13 @@
 /*****************************new的实现************************************************/
-function new0(){
-  var obj = new Object()
-  var con = Array.prototype.shift.call(arguments); 
-  obj.__proto__ = con.prototype;
-  var result = con.apply(obj, arguments);
-  return typeof result == 'object' ? result : obj;
-}
-
-
-/**练习 */
-
-function new0(context){
+function new0(func, ...args) {
   var obj = new Object();
-  var args = Array.prototype.slice.call(arguments, 1);
-  obj.__proto__ = context.prototype;
-  var result = context.apply(obj, args);
+  obj.__proto__ = func.prototype;
+  var result = func.apply(obj, args);
   return typeof result == "object" ? result : obj;
 }
-function Person(name,value){
+/**练习 */
+
+function Person(name, value) {
   this.name = name;
   this.value = value;
 }
-new0(Person, '111', '222');

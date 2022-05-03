@@ -49,9 +49,7 @@ class LazyManClass {
     fn && fn();
   }
 }
-// function LazyMan(name) {
-//   return new LazyManClass(name);
-// }
+
 new LazyManClass("Tony")
   .eat("lunch")
   .eat("dinner")

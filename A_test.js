@@ -1,15 +1,13 @@
-function compose(func){
-  return function
+function sum(a, b) {
+  var arra = a.split("");
+  var arrb = b.split("");
+  var c = 0,
+    res = "";
+  while (arra.length || arrb.length || c) {
+    var c = ~~arra.pop() + ~~arrb.pop() + c;
+    res = (c % 10) + res;
+    c = c > 9;
+  }
+  return res;
 }
-
-function A(a){
-  return a+5;
-}
-function B(b){
-  return b*5;
-}
-function C(c){
-  return c-5;
-}
-
-compose( C(B(A(1))) )
+console.log(sum("11111", "222222"));

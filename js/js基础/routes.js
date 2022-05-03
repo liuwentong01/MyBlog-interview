@@ -8,7 +8,7 @@ class Route {
   }
   // 存储
   storeRoute(path, cb) {
-    this.routes[path] = cb || function() {};
+    this.routes[path] = cb || function () {};
   }
   // 更新
   freshRoute() {
