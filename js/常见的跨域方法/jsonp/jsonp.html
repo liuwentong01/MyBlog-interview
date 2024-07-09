@@ -18,13 +18,19 @@
           document.body.removeChild(script);
         };
         params = { ...params, callback }; // wd=b&callback=show ES六对象字面量语法，可省略值
+<<<<<<< HEAD
         console.log(params);
+=======
+>>>>>>> af38c9aae2c631c04c8b9c204ca7bbd1372e5903
         let arrs = [];
         for (let key in params) {
           arrs.push(`${key}=${params[key]}`);
         }
         script.src = `${url}?${arrs.join("&")}`;
+<<<<<<< HEAD
         console.log(script.src);
+=======
+>>>>>>> af38c9aae2c631c04c8b9c204ca7bbd1372e5903
         document.body.appendChild(script);
       });
     }
@@ -34,7 +40,10 @@
       params: { wd: "Iloveyou", yd:'youloveme' },
       callback: "show"
     }).then(data => {
+<<<<<<< HEAD
       console.log(data);
+=======
+>>>>>>> af38c9aae2c631c04c8b9c204ca7bbd1372e5903
     });
   
   </script>

@@ -1,6 +1,10 @@
 /******************************************* */
 class PersonClass{
+<<<<<<< HEAD
   constructor(){
+=======
+  constructor(name){
+>>>>>>> af38c9aae2c631c04c8b9c204ca7bbd1372e5903
     this.name = name;
   }
   sayName(){

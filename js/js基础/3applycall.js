@@ -44,19 +44,18 @@ function sayValue(val1, val2) {
 }
 sayValue.apply0(v);
 
-
 /**简易写法 */
-Function.prototype.call1 = function(context, ...args) {
+Function.prototype.call1 = function (context, ...args) {
   context.fn = this;
   const res = context.fn(...args);
   delete context.fn;
   return res;
-}
+};
 
-Function.prototype.apply1 = function(context, ...args) {
+Function.prototype.apply1 = function (context, ...args) {
   context.fn = this;
   const res = context.fn(args);
   delete context.fn;
   return res;
-}
-sayValue.call1(v, 'cao');
+};
+sayValue.call1(v, "cao");

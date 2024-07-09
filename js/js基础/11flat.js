@@ -1,7 +1,11 @@
 /**
  * 数组扁平化， 方法一：递归 方法二：flat（）
  */
+<<<<<<< HEAD
 var arr0 = [[222, [333, 236], 444], [55, 66, 77], 7];
+=======
+var arr = [[222, [333, 236], 444], [55, 66, 77], 7];
+>>>>>>> af38c9aae2c631c04c8b9c204ca7bbd1372e5903
 var res = [];
 function toArr(arr) {
   for (let i = 0; i < arr.length; i++) {
@@ -12,7 +16,11 @@ function toArr(arr) {
     }
   }
 }
+<<<<<<< HEAD
 toArr(arr0);
+=======
+toArr(arr);
+>>>>>>> af38c9aae2c631c04c8b9c204ca7bbd1372e5903
 console.log(res);
 
 //方法二
@@ -32,4 +40,7 @@ function arrFlat(arr) {
   );
 }
 arrFlat(arr);
+<<<<<<< HEAD
 
+=======
+>>>>>>> af38c9aae2c631c04c8b9c204ca7bbd1372e5903
