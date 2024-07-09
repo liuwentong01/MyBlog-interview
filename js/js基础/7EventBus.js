@@ -25,27 +25,7 @@ let emitter = new EventEmitter();
 emitter.once("ages", (age) => {
   console.log(age);
 });
-emitter.emit("ages", 15);
+emitter.emit("ages", 12)
+emitter.emit("ages", 13)
 // emitter.on("focu", (state) => console.log(state));
 // emitter.emit("focu", "xxx", "yyy");
-
-class EventEmitter {
-  constructor() {
-    this.event = {};
-  }
-  on(type, fn) {
-    this.event[type] ? this.event[type].push(fn) : this.event[type] = [fn]
-  }
-  off(type) {
-    this.event[type] && delete this.event[type];
-  }
-  emit(type, ...args) {
-    this.event[type] && this.event[type].forEach(cb => cb(...args))
-  }
-  once(type, fn) {
-    this.on(type, (...args) => {
-      fn(...args);
-      this.off(type);
-    })
-  }
-}
