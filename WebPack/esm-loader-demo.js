@@ -1,6 +1,6 @@
 /**
  * ES Module加载器演示 (ES Module Loader Demo)
- * 
+ *
  * 这段代码模拟了webpack处理ES Module的机制，展示了：
  * 1. 如何将ES Module转换为CommonJS格式
  * 2. 如何通过Object.defineProperty实现命名导出
@@ -23,7 +23,7 @@ var modules = {
     // 2. 通过Object.defineProperty给exports设置属性
     // 使用getter函数可以实现live binding（动态绑定）
     require.defineProperty(exports, {
-      age: () => age,              // 命名导出: export const age
+      age: () => age, // 命名导出: export const age
       default: () => DEFAULT_EXPORT, // 默认导出: export default
     });
   },
@@ -45,7 +45,7 @@ function require(modulePath) {
     return cachedModule.exports;
   }
 
-  // 创建模块对象
+  // 创建模块对象（赋值表达式 { exports: {},}会被返回， 再次赋值给module）
   var module = (cache[modulePath] = {
     exports: {},
   });
@@ -68,7 +68,7 @@ function require(modulePath) {
 require.defineProperty = (exports, definition) => {
   for (var key in definition) {
     Object.defineProperty(exports, key, {
-      enumerable: true,     // 可枚举
+      enumerable: true, // 可枚举
       get: definition[key], // getter函数，实现动态绑定
     });
   }
@@ -103,3 +103,9 @@ console.log(_name__WEBPACK_IMPORTED_MODULE_0__["default"], "author"); // 输出:
 
 // 访问命名导出（对应 import { age } from './src/name.js'）
 console.log(_name__WEBPACK_IMPORTED_MODULE_0__.age, "age"); // 输出: 18 age
+
+// a.js
+const b = require("./b");
+
+// b.js
+const a = require("./a");
