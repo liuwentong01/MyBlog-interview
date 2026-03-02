@@ -44,7 +44,7 @@
  *  关键数据结构
  * ═══════════════════════════════════════════════════════
  *
- *  modules (即 __webpack_modules__):
+ *  modules (即 __webpack_modules_q 全局只有一个):
  *    存放所有模块的工厂函数（同步模块初始就有，异步模块加载后合并进来）
  *
  *  cache (即 __webpack_module_cache__):
@@ -440,7 +440,7 @@ require.O = function (result, chunkIds, fn, priority) {
       // 通过 require.O 上挂载的检查函数判断每个 chunk 是否就绪
       // require.O.j 检查 JS chunk 状态
       if (
-        (deferredPriority & 1 === 0 || notFulfilled >= deferredPriority) &&
+        (deferredPriority & (1 === 0) || notFulfilled >= deferredPriority) &&
         Object.keys(require.O).every(function (key) {
           return require.O[key](deferredChunkIds[j]);
         })
@@ -475,7 +475,10 @@ require.O.j = function (chunkId) {
 // ================================================================
 /**
  * 异步 chunk 文件加载完成后被调用
- *
+ * 
+ *（NOTE： 一个 chunk 对应一个文件，但一个 chunk 文件里可以打包 N 个 module。如果 test.js 用静态 import 引入了其他文件，webpack 会把它们全部打包进同一个 chunk
+ 所以 moreModules代表这个 chunk 携带的一批模块工厂函数，webpackJsonpCallback 用 for...in 循环把它们逐个合并进全局 modules，也是这个原因）
+
  * chunk 文件内容形如：
  *   (self.webpackChunkstudy = self.webpackChunkstudy || []).push([
  *     ["src_test_js"],                           // chunkIds
@@ -517,7 +520,7 @@ function webpackJsonpCallback(parentChunkLoadingFunction, data) {
   // 3. 执行可选的 runtime 函数（用于初始化额外的 require 方法）
   if (runtime) runtime(require);
 
-  // 4. 链式调用：如果存在父级加载函数，继续传递数据
+  // 4. TODO 链式调用：如果存在父级加载函数，继续传递数据
   //    （多 webpack 运行时共存场景）
   if (parentChunkLoadingFunction) parentChunkLoadingFunction(data);
 
