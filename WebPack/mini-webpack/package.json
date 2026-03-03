@@ -1,0 +1,16 @@
+{
+  "name": "mini-webpack",
+  "version": "1.0.0",
+  "description": "手写一个完整的 webpack 打包器（参考掘金文章实现）",
+  "scripts": {
+    "build": "node debugger.js",
+    "run-bundle": "node dist/main.js"
+  },
+  "dependencies": {
+    "@babel/generator": "^7.23.0",
+    "@babel/parser": "^7.23.0",
+    "@babel/traverse": "^7.23.0",
+    "@babel/types": "^7.23.0",
+    "tapable": "^2.2.1"
+  }
+}

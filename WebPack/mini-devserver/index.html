@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>mini-devserver HMR 演示</title>
+  <style>
+    body { font-family: -apple-system, sans-serif; padding: 40px; background: #f5f5f5; }
+    #root { font-size: 24px; margin-bottom: 20px; color: #333; }
+    .tip { color: #888; font-size: 14px; margin: 10px 0; }
+    input { padding: 8px 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; width: 300px; }
+  </style>
+</head>
+<body>
+  <div id="root">加载中...</div>
+  <p class="tip">在下方输入框中输入文字，然后修改 src/name.js 或 src/age.js 并保存：</p>
+  <p class="tip">观察：页面内容会更新，但输入框中的文字不会丢失（说明不是整页刷新，而是热替换）</p>
+  <input type="text" placeholder="在此输入文字，验证热更新不会丢失状态..." />
+  <script src="/bundle.js"></script>
+</body>
+</html>
