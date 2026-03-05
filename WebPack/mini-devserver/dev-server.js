@@ -48,16 +48,16 @@
  *   ⑩ 页面局部更新完成，输入框等状态不丢失
  */
 
-const fs = require('fs');
-const path = require('path');
-const http = require('http');
-const crypto = require('crypto');
+const fs = require("fs");
+const path = require("path");
+const http = require("http");
+const crypto = require("crypto");
 
-const parser = require('@babel/parser');
-const traverse = require('@babel/traverse').default;
-const generator = require('@babel/generator').default;
-const types = require('@babel/types');
-const { WebSocketServer } = require('ws');
+const parser = require("@babel/parser");
+const traverse = require("@babel/traverse").default;
+const generator = require("@babel/generator").default;
+const types = require("@babel/types");
+const { WebSocketServer } = require("ws");
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Part 1: 工具函数
@@ -65,12 +65,12 @@ const { WebSocketServer } = require('ws');
 
 /** 统一路径分隔符为 /（兼容 Windows） */
 function toUnixPath(p) {
-  return p.replace(/\\/g, '/');
+  return p.replace(/\\/g, "/");
 }
 
 /** 生成随机 hash（模拟 webpack 每次编译的唯一标识） */
 function createHash() {
-  return crypto.randomBytes(8).toString('hex');
+  return crypto.randomBytes(8).toString("hex");
 }
 
 /**
@@ -83,7 +83,7 @@ function tryExtensions(modulePath, extensions) {
     const p = modulePath + ext;
     if (fs.existsSync(p)) return p;
   }
-  throw new Error(`找不到模块: ${modulePath}（已尝试: ${extensions.join(', ')}）`);
+  throw new Error(`找不到模块: ${modulePath}（已尝试: ${extensions.join(", ")}）`);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -91,15 +91,15 @@ function tryExtensions(modulePath, extensions) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 // 读取配置
-const config = require('./webpack.config');
+const config = require("./webpack.config");
 const baseDir = toUnixPath(process.cwd());
-const extensions = config.resolve?.extensions || ['.js'];
+const extensions = config.resolve?.extensions || [".js"];
 const port = config.devServer?.port || 8080;
 
 // 编译状态（相当于简化版的 memfs，所有编译产物都在内存中）
-let modules = {};          // 模块表：{ moduleId → { id, deps, code, filePath } }
-let currentHash = '';      // 当前编译的 hash
-const memoryFS = {};       // 内存文件系统：{ url路径 → 文件内容 }
+let modules = {}; // 模块表：{ moduleId → { id, deps, code, filePath } }
+let currentHash = ""; // 当前编译的 hash
+const memoryFS = {}; // 内存文件系统：{ url路径 → 文件内容 }
 
 /**
  * 编译单个模块
@@ -116,12 +116,12 @@ const memoryFS = {};       // 内存文件系统：{ url路径 → 文件内容 
  */
 function buildModule(filePath) {
   filePath = toUnixPath(filePath);
-  const source = fs.readFileSync(filePath, 'utf8');
-  const moduleId = './' + path.posix.relative(baseDir, filePath);
+  const source = fs.readFileSync(filePath, "utf8");
+  const moduleId = "./" + path.posix.relative(baseDir, filePath);
   const dirname = path.posix.dirname(filePath);
   const deps = [];
 
-  const ast = parser.parse(source, { sourceType: 'module' });
+  const ast = parser.parse(source, { sourceType: "module" });
 
   traverse(ast, {
     CallExpression(nodePath) {
@@ -130,14 +130,14 @@ function buildModule(filePath) {
       // ── 处理 require('./xxx') ──────────────────────────────────────
       // 将相对路径改写为模块 ID，如 require('./name') → require('./src/name.js')
       if (
-        node.callee.type === 'Identifier' &&
-        node.callee.name === 'require' &&
-        node.arguments[0]?.type === 'StringLiteral'
+        node.callee.type === "Identifier" &&
+        node.callee.name === "require" &&
+        node.arguments[0]?.type === "StringLiteral"
       ) {
         const depName = node.arguments[0].value;
         let depPath = tryExtensions(path.posix.join(dirname, depName), extensions);
         depPath = toUnixPath(depPath);
-        const depId = './' + path.posix.relative(baseDir, depPath);
+        const depId = "./" + path.posix.relative(baseDir, depPath);
 
         node.arguments = [types.stringLiteral(depId)];
         deps.push({ id: depId, path: depPath });
@@ -147,19 +147,19 @@ function buildModule(filePath) {
       // 同样需要把相对路径改写为模块 ID，
       // 这样 HMR 运行时才能正确匹配哪个模块发生了变化
       if (
-        node.callee.type === 'MemberExpression' &&
-        node.callee.property.type === 'Identifier' &&
-        node.callee.property.name === 'accept' &&
-        node.callee.object?.type === 'MemberExpression' &&
-        node.callee.object.property?.name === 'hot' &&
-        node.callee.object.object?.type === 'Identifier' &&
-        node.callee.object.object.name === 'module' &&
-        node.arguments[0]?.type === 'StringLiteral'
+        node.callee.type === "MemberExpression" &&
+        node.callee.property.type === "Identifier" &&
+        node.callee.property.name === "accept" &&
+        node.callee.object?.type === "MemberExpression" &&
+        node.callee.object.property?.name === "hot" &&
+        node.callee.object.object?.type === "Identifier" &&
+        node.callee.object.object.name === "module" &&
+        node.arguments[0]?.type === "StringLiteral"
       ) {
         const depName = node.arguments[0].value;
         let depPath = tryExtensions(path.posix.join(dirname, depName), extensions);
         depPath = toUnixPath(depPath);
-        const depId = './' + path.posix.relative(baseDir, depPath);
+        const depId = "./" + path.posix.relative(baseDir, depPath);
         node.arguments[0] = types.stringLiteral(depId);
       }
     },
@@ -208,7 +208,7 @@ function fullBuild() {
  */
 function incrementalBuild(changedFilePath) {
   changedFilePath = toUnixPath(changedFilePath);
-  const moduleId = './' + path.posix.relative(baseDir, changedFilePath);
+  const moduleId = "./" + path.posix.relative(baseDir, changedFilePath);
 
   // 如果变更的文件不在已知模块列表中，跳过
   if (!modules[moduleId]) return null;
@@ -258,13 +258,12 @@ function incrementalBuild(changedFilePath) {
  *   })();
  */
 function generateBundle() {
-  const entryId =
-    './' + path.posix.relative(baseDir, toUnixPath(path.resolve(baseDir, config.entry)));
+  const entryId = "./" + path.posix.relative(baseDir, toUnixPath(path.resolve(baseDir, config.entry)));
 
   // 将所有模块序列化为 "moduleId": function(module, exports, require) { code } 格式
   const modulesStr = Object.values(modules)
     .map((mod) => `    "${mod.id}": function(module, exports, require) {\n${mod.code}\n    }`)
-    .join(',\n');
+    .join(",\n");
 
   const bundle = `
 /*
@@ -453,6 +452,17 @@ ${modulesStr}
      *
      * @param {string} hash  上一次的 hash（用于定位热更新文件）
      */
+
+    /** 
+     * 为什么用 <script> 加载 hot-update.js 而不是 fetch？
+     * 1. 避免 eval()，兼容 CSP（Content Security Policy）
+     * 如果用 fetch() 拿回 JS 字符串，就必须用 eval() 或 new Function() 来执行它。
+     * 但很多网站的 CSP 策略禁止 unsafe-eval，这会直接导致 HMR 失效。
+     * 而 <script> 标签加载的脚本走的是浏览器原生的脚本执行通道，不受 eval 类 CSP 限制。
+     * 2. 天然的「回调」机制
+     * JSONP 的精髓在于：脚本加载后立即调用一个预先约定好的全局函数（这里是 self.webpackHotUpdate）。
+     * 不需要任何额外的协调机制，脚本一执行就自动把新模块注册进去了。这比 fetch + eval 的流程更简洁。
+     **/
     function hotCheck(hash) {
       console.log('[HMR] 🔄 开始热替换，请求更新清单...');
 
@@ -492,7 +502,7 @@ ${modulesStr}
 })();
 `;
 
-  memoryFS['/bundle.js'] = bundle;
+  memoryFS["/bundle.js"] = bundle;
 }
 
 /**
@@ -520,13 +530,13 @@ function generateHotUpdate(oldHash, changedModuleId) {
   // ── hot-update.js：包含变更模块的新代码 ──
   // 浏览器通过 <script> 加载后，会调用 self.webpackHotUpdate()
   const updateJS = `
-// hot-update: hash=${oldHash} → 模块 ${changedModuleId} 已更新
-self.webpackHotUpdate("main", {
-  "${changedModuleId}": function(module, exports, require) {
-${mod.code}
-  }
-});
-`;
+    // hot-update: hash=${oldHash} → 模块 ${changedModuleId} 已更新
+    self.webpackHotUpdate("main", {
+      "${changedModuleId}": function(module, exports, require) {
+    ${mod.code}
+      }
+    });
+  `;
   memoryFS[`/main.${oldHash}.hot-update.js`] = updateJS;
 }
 
@@ -547,12 +557,12 @@ ${mod.code}
  *   避免频繁的磁盘 I/O，大幅提升 dev 模式下的编译速度。
  */
 const server = http.createServer((req, res) => {
-  const url = req.url === '/' ? '/index.html' : req.url;
+  const url = req.url === "/" ? "/index.html" : req.url;
 
   // 先从内存文件系统中查找（bundle.js、hot-update 文件）
   if (memoryFS[url]) {
-    const contentType = url.endsWith('.json') ? 'application/json' : 'application/javascript';
-    res.writeHead(200, { 'Content-Type': `${contentType}; charset=utf-8` });
+    const contentType = url.endsWith(".json") ? "application/json" : "application/javascript";
+    res.writeHead(200, { "Content-Type": `${contentType}; charset=utf-8` });
     res.end(memoryFS[url]);
     return;
   }
@@ -561,14 +571,14 @@ const server = http.createServer((req, res) => {
   const filePath = path.join(__dirname, url);
   if (fs.existsSync(filePath)) {
     const ext = path.extname(filePath);
-    const mimeTypes = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css' };
-    res.writeHead(200, { 'Content-Type': `${mimeTypes[ext] || 'text/plain'}; charset=utf-8` });
-    res.end(fs.readFileSync(filePath, 'utf8'));
+    const mimeTypes = { ".html": "text/html", ".js": "application/javascript", ".css": "text/css" };
+    res.writeHead(200, { "Content-Type": `${mimeTypes[ext] || "text/plain"}; charset=utf-8` });
+    res.end(fs.readFileSync(filePath, "utf8"));
     return;
   }
 
   res.writeHead(404);
-  res.end('Not Found');
+  res.end("Not Found");
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -587,15 +597,15 @@ const wss = new WebSocketServer({ server });
 // 记录所有连接的客户端
 const wsClients = new Set();
 
-wss.on('connection', (ws) => {
+wss.on("connection", (ws) => {
   wsClients.add(ws);
   console.log(`  🔌 新的 WebSocket 连接（当前 ${wsClients.size} 个客户端）`);
 
   // 新连接时，立即发送当前 hash（初始化客户端状态）
-  ws.send(JSON.stringify({ type: 'hash', hash: currentHash }));
-  ws.send(JSON.stringify({ type: 'ok' }));
+  ws.send(JSON.stringify({ type: "hash", hash: currentHash }));
+  ws.send(JSON.stringify({ type: "ok" }));
 
-  ws.on('close', () => {
+  ws.on("close", () => {
     wsClients.delete(ws);
     console.log(`  🔌 WebSocket 断开（剩余 ${wsClients.size} 个客户端）`);
   });
@@ -628,11 +638,11 @@ function broadcast(data) {
  * 使用 debounce 防抖：编辑器保存文件时可能触发多次 change 事件
  */
 function startWatching() {
-  const srcDir = path.resolve(__dirname, 'src');
+  const srcDir = path.resolve(__dirname, "src");
   let debounceTimer = null;
 
   fs.watch(srcDir, { recursive: true }, (eventType, filename) => {
-    if (!filename || !filename.endsWith('.js')) return;
+    if (!filename || !filename.endsWith(".js")) return;
 
     // 防抖：200ms 内多次变化只处理最后一次
     clearTimeout(debounceTimer);
@@ -643,7 +653,7 @@ function startWatching() {
       // ── Step 1：增量编译 ──
       const result = incrementalBuild(changedFile);
       if (!result) {
-        console.log('  ⏭️  变更的文件不在模块列表中，跳过');
+        console.log("  ⏭️  变更的文件不在模块列表中，跳过");
         return;
       }
 
@@ -660,8 +670,8 @@ function startWatching() {
       console.log(`     → {type: "hash", hash: "${result.newHash}"}`);
       console.log(`     → {type: "ok"}`);
 
-      broadcast({ type: 'hash', hash: result.newHash });
-      broadcast({ type: 'ok' });
+      broadcast({ type: "hash", hash: result.newHash });
+      broadcast({ type: "ok" });
     }, 200);
   });
 
@@ -672,7 +682,7 @@ function startWatching() {
 // Part 7: 启动！
 // ═══════════════════════════════════════════════════════════════════════════
 
-console.log('\n  🚀 mini-devserver 启动中...\n');
+console.log("\n  🚀 mini-devserver 启动中...\n");
 
 // Step 1：首次全量编译
 const initialHash = fullBuild();
