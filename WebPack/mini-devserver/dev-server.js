@@ -97,31 +97,73 @@ const extensions = config.resolve?.extensions || [".js"];
 const port = config.devServer?.port || 8080;
 
 // 编译状态（相当于简化版的 memfs，所有编译产物都在内存中）
-let modules = {}; // 模块表：{ moduleId → { id, deps, code, filePath } }
+let modules = {}; // 模块表：{ moduleId → { id, names, dependencies, _source, filePath } }
 let currentHash = ""; // 当前编译的 hash
 const memoryFS = {}; // 内存文件系统：{ url路径 → 文件内容 }
 
 /**
- * 编译单个模块
+ * 编译单个模块（核心方法，会递归处理所有依赖）
  *
- * 1. 读取文件内容
- * 2. 用 @babel/parser 解析成 AST
- * 3. 遍历 AST：
- *    - 找到所有 require('...') 调用，改写相对路径为模块 ID
- *    - 找到所有 module.hot.accept('...', cb) 调用，同样改写路径
- * 4. 用 @babel/generator 重新生成代码
+ * 执行步骤（与 webpack.js 的 Compilation.buildModule 对齐）：
+ *   1. 如果模块已存在（循环依赖保护），直接返回
+ *   2. 读取文件内容
+ *   3. 创建模块对象并【立即】放入 modules（防止后续递归重复处理）
+ *   4. 应用匹配的 Loader（从右到左链式调用）
+ *   5. 用 @babel/parser 将代码解析成 AST
+ *   6. 遍历 AST，找出所有 require() 调用，将相对路径改写为模块 ID
+ *      （HMR 特有：同时处理 module.hot.accept() 中的路径改写）
+ *   7. 用 @babel/generator 将修改后的 AST 重新生成代码字符串
+ *   8. 递归编译所有依赖模块
  *
- * @param {string} filePath  模块的绝对路径
- * @returns {{ id, deps, code, filePath }}
+ * @param {string} name        所属 chunk 的名称（如 'main'）
+ * @param {string} modulePath  模块的绝对路径
+ * @returns {object}           模块对象 { id, names, dependencies, _source, filePath }
  */
-function buildModule(filePath) {
-  filePath = toUnixPath(filePath);
-  const source = fs.readFileSync(filePath, "utf8");
-  const moduleId = "./" + path.posix.relative(baseDir, filePath);
-  const dirname = path.posix.dirname(filePath);
-  const deps = [];
+function buildModule(name, modulePath) {
+  modulePath = toUnixPath(modulePath);
 
-  const ast = parser.parse(source, { sourceType: "module" });
+  // ── Step 1：循环依赖保护 ────────────────────────────────────────────────
+  // 在处理依赖之前，先检查模块是否已存在于 modules 中。
+  // 如果已存在，说明已经在编译（或已编译完成），直接返回，避免无限递归。
+  const moduleId = "./" + path.posix.relative(baseDir, modulePath);
+
+  if (modules[moduleId]) {
+    if (!modules[moduleId].names.includes(name)) {
+      modules[moduleId].names.push(name);
+    }
+    return modules[moduleId];
+  }
+
+  // ── Step 2：读取模块源代码 ──────────────────────────────────────────────
+  let sourceCode = fs.readFileSync(modulePath, "utf8");
+
+  // ── Step 3：创建模块对象，立即放入 modules（先占位！）──────────────────
+  // 必须在调用 loader 和递归之前就放入，
+  // 这样任何深层的递归遇到同一模块时都能在 Step 1 中命中并提前返回。
+  const module = {
+    id: moduleId,
+    names: [name],
+    dependencies: [],
+    _source: "",
+    filePath: modulePath,
+  };
+  modules[moduleId] = module;
+
+  // ── Step 4：应用 Loader（从右到左）──────────────────────────────────────
+  // Loader 的本质：一个函数，接收源代码字符串，返回转换后的字符串。
+  // use: [A, B, C] 等价于 A(B(C(source)))，即 C 先执行，A 最后执行。
+  const { rules = [] } = config.module || {};
+  const loaders = [];
+  rules.forEach((rule) => {
+    if (modulePath.match(rule.test)) {
+      loaders.push(...rule.use);
+    }
+  });
+  sourceCode = loaders.reduceRight((code, loader) => loader(code), sourceCode);
+
+  // ── Step 5 & 6：解析 AST，找出 require() 并改写路径 ───────────────────
+  const ast = parser.parse(sourceCode, { sourceType: "module" });
+  const dirname = path.posix.dirname(modulePath);
 
   traverse(ast, {
     CallExpression(nodePath) {
@@ -134,16 +176,16 @@ function buildModule(filePath) {
         node.callee.name === "require" &&
         node.arguments[0]?.type === "StringLiteral"
       ) {
-        const depName = node.arguments[0].value;
-        let depPath = tryExtensions(path.posix.join(dirname, depName), extensions);
-        depPath = toUnixPath(depPath);
-        const depId = "./" + path.posix.relative(baseDir, depPath);
+        const depModuleName = node.arguments[0].value;
+        let depModulePath = tryExtensions(path.posix.join(dirname, depModuleName), extensions);
+        depModulePath = toUnixPath(depModulePath);
+        const depModuleId = "./" + path.posix.relative(baseDir, depModulePath);
 
-        node.arguments = [types.stringLiteral(depId)];
-        deps.push({ id: depId, path: depPath });
+        node.arguments = [types.stringLiteral(depModuleId)];
+        module.dependencies.push({ depModuleId, depModulePath });
       }
 
-      // ── 处理 module.hot.accept('./xxx', callback) ──────────────────
+      // ── TODO 处理 module.hot.accept('./xxx', callback) ── HMR 特有 ──────
       // 同样需要把相对路径改写为模块 ID，
       // 这样 HMR 运行时才能正确匹配哪个模块发生了变化
       if (
@@ -156,40 +198,55 @@ function buildModule(filePath) {
         node.callee.object.object.name === "module" &&
         node.arguments[0]?.type === "StringLiteral"
       ) {
-        const depName = node.arguments[0].value;
-        let depPath = tryExtensions(path.posix.join(dirname, depName), extensions);
-        depPath = toUnixPath(depPath);
-        const depId = "./" + path.posix.relative(baseDir, depPath);
-        node.arguments[0] = types.stringLiteral(depId);
+        const depModuleName = node.arguments[0].value;
+        let depModulePath = tryExtensions(path.posix.join(dirname, depModuleName), extensions);
+        depModulePath = toUnixPath(depModulePath);
+        const depModuleId = "./" + path.posix.relative(baseDir, depModulePath);
+        node.arguments[0] = types.stringLiteral(depModuleId);
       }
     },
   });
 
+  // ── Step 7：将修改后的 AST 重新生成为代码字符串 ────────────────────────
   const { code } = generator(ast);
-  return { id: moduleId, deps, code, filePath };
+  module._source = code;
+
+  // ── Step 8：递归编译所有依赖模块 ───────────────────────────────────────
+  // 此时 module 已在 modules 中（Step 3 放入的），
+  // 如果依赖链中出现循环依赖，在 Step 1 中会检测到并提前返回，不会无限递归。
+  module.dependencies.forEach(({ depModulePath }) => {
+    buildModule(name, depModulePath);
+  });
+
+  return module;
 }
 
 /**
- * 首次全量编译
- * 从 entry 出发，BFS 遍历所有依赖，构建完整的模块表
+ * 首次全量编译（与 webpack.js 的 Compilation.build 对齐）
+ *
+ * 1. 统一 entry 格式（字符串 → 对象）
+ * 2. 对每个入口调用 buildModule（内部递归编译整个依赖树）
+ * 3. 生成 bundle
  */
 function fullBuild() {
   modules = {};
-  const entryPath = toUnixPath(path.resolve(baseDir, config.entry));
-  const queue = [entryPath];
-  const visited = new Set();
 
-  while (queue.length > 0) {
-    const filePath = queue.shift();
-    if (visited.has(filePath)) continue;
-    visited.add(filePath);
+  // ── 统一处理 entry 格式 ────────────────────────────────────────────────
+  // webpack 支持多种 entry 写法：
+  //   字符串：entry: './src/index.js'          → 单入口，chunk 名默认为 'main'
+  //   对象：  entry: { app: './src/app.js' }   → 可自定义 chunk 名，支持多入口
+  let entry = {};
+  if (typeof config.entry === "string") {
+    entry.main = config.entry;
+  } else {
+    entry = config.entry;
+  }
 
-    const mod = buildModule(filePath);
-    modules[mod.id] = mod;
-
-    mod.deps.forEach((dep) => {
-      if (!visited.has(dep.path)) queue.push(dep.path);
-    });
+  // ── 遍历每个入口，从入口文件开始递归编译整个依赖树 ──────────────────────
+  // buildModule 内部会递归处理所有依赖，并将所有模块放入 modules
+  for (const entryName in entry) {
+    const entryFilePath = toUnixPath(path.resolve(baseDir, entry[entryName]));
+    buildModule(entryName, entryFilePath);
   }
 
   currentHash = createHash();
@@ -203,6 +260,12 @@ function fullBuild() {
  * 只重新编译变更的模块，不需要全部重来。
  * 这就是 webpack-dev-server 能做到快速热更新的原因。
  *
+ * 实现方式：
+ *   1. 删除变更模块在 modules 中的记录
+ *   2. 调用 buildModule 重新编译（内部会递归处理依赖）
+ *      - 已存在的其他模块会被 Step 1 的循环依赖保护跳过（不重复编译）
+ *      - 新增的依赖（用户新加了 require）会被正常编译
+ *
  * @param {string} changedFilePath  变更文件的绝对路径
  * @returns {{ oldHash, newHash, changedModuleId } | null}
  */
@@ -215,18 +278,13 @@ function incrementalBuild(changedFilePath) {
 
   // 保存旧 hash（客户端要用它来请求热更新文件）
   const oldHash = currentHash;
+  const oldNames = modules[moduleId].names;
 
-  // 重新编译变更的模块
-  const newMod = buildModule(changedFilePath);
-  modules[moduleId] = newMod;
+  // 删除变更的模块，使 buildModule 能重新编译它
+  delete modules[moduleId];
 
-  // 检查是否有新的依赖（例如用户新增了一行 require）
-  newMod.deps.forEach((dep) => {
-    if (!modules[dep.id]) {
-      const depMod = buildModule(dep.path);
-      modules[dep.id] = depMod;
-    }
-  });
+  // 重新编译变更的模块（递归处理依赖，已有模块会被循环依赖保护跳过）TODO： 这次怎么做到的没被多次编译
+  oldNames.forEach((name) => buildModule(name, changedFilePath));
 
   // 生成新 hash
   currentHash = createHash();
@@ -260,9 +318,10 @@ function incrementalBuild(changedFilePath) {
 function generateBundle() {
   const entryId = "./" + path.posix.relative(baseDir, toUnixPath(path.resolve(baseDir, config.entry)));
 
-  // 将所有模块序列化为 "moduleId": function(module, exports, require) { code } 格式
+  // 将所有模块序列化为 "moduleId": (module, exports, require) => { code } 格式
+  // （与 webpack.js 的 getSource 一致，使用箭头函数包裹模块代码）
   const modulesStr = Object.values(modules)
-    .map((mod) => `    "${mod.id}": function(module, exports, require) {\n${mod.code}\n    }`)
+    .map((mod) => `    /* 模块: ${mod.id} */\n    "${mod.id}": (module, exports, require) => {\n${mod._source}\n    }`)
     .join(",\n");
 
   const bundle = `
@@ -327,18 +386,22 @@ ${modulesStr}
 
   /* ──────────────────── 自定义 require ──────────────────── */
   function require(moduleId) {
-    /* 命中缓存：直接返回（不重复执行模块代码） */
-    if (cache[moduleId]) return cache[moduleId].exports;
+    /* 命中缓存：模块已经执行过，直接返回缓存的 exports（不重复执行） */
+    var cachedModule = cache[moduleId];
+    if (cachedModule !== undefined) {
+      return cachedModule.exports;
+    }
 
-    /* 创建模块对象，附带 hot API，并立即放入缓存（防循环依赖） */
-    var module = cache[moduleId] = {
+    /* 创建模块对象，附带 hot API，并立即放入缓存（先占位，解决循环依赖问题） */
+    var module = (cache[moduleId] = {
       exports: {},
       hot: createModuleHot(moduleId)
-    };
+    });
 
-    /* 执行模块代码 */
+    /* 取出模块函数并执行，传入 module / module.exports / require */
     modules[moduleId](module, module.exports, require);
 
+    /* 返回模块的导出值 */
     return module.exports;
   }
 
@@ -529,11 +592,12 @@ function generateHotUpdate(oldHash, changedModuleId) {
 
   // ── hot-update.js：包含变更模块的新代码 ──
   // 浏览器通过 <script> 加载后，会调用 self.webpackHotUpdate()
+  // 模块包裹格式与 generateBundle 中的模块注册表保持一致（箭头函数）
   const updateJS = `
     // hot-update: hash=${oldHash} → 模块 ${changedModuleId} 已更新
     self.webpackHotUpdate("main", {
-      "${changedModuleId}": function(module, exports, require) {
-    ${mod.code}
+      "${changedModuleId}": (module, exports, require) => {
+    ${mod._source}
       }
     });
   `;
@@ -689,7 +753,7 @@ const initialHash = fullBuild();
 console.log(`  📦 首次编译完成，hash: ${initialHash}`);
 console.log(`     模块列表:`);
 Object.values(modules).forEach((mod) => {
-  console.log(`     - ${mod.id} (${mod.deps.length} 个依赖)`);
+  console.log(`     - ${mod.id} (${mod.dependencies.length} 个依赖)`);
 });
 
 // Step 2：启动 HTTP + WebSocket 服务器
