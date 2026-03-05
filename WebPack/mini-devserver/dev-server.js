@@ -44,7 +44,7 @@
  *   ⑥ WebSocket 推送 {type:"hash", hash:"h2"} 和 {type:"ok"} 给浏览器
  *   ⑦ 浏览器用 lastHash=h1 请求 GET /h1.hot-update.json → 拿到变更的 chunk 列表
  *   ⑧ 浏览器用 lastHash=h1 加载 <script src="/main.h1.hot-update.js">
- *   ⑨ hot-update.js 调用 webpackHotUpdate() → 替换模块 → 清缓存 → 执行 accept 回调
+ *   ⑨ TODO hot-update.js 调用 webpackHotUpdate() → 替换模块 → 清缓存 → 执行 accept 回调
  *   ⑩ 页面局部更新完成，输入框等状态不丢失
  */
 
@@ -283,7 +283,7 @@ function incrementalBuild(changedFilePath) {
   // 删除变更的模块，使 buildModule 能重新编译它
   delete modules[moduleId];
 
-  // 重新编译变更的模块（递归处理依赖，已有模块会被循环依赖保护跳过）TODO： 这次怎么做到的没被多次编译
+  // 重新编译变更的模块（递归处理依赖，已有模块会被循环依赖保护跳过）
   oldNames.forEach((name) => buildModule(name, changedFilePath));
 
   // 生成新 hash
@@ -343,6 +343,7 @@ ${modulesStr}
   /* 保证每个模块只执行一次（缓存 exports），同时用于解决循环依赖 */
   var cache = {};
 
+  TODO 目前没弄明白HMR相关的状态
   /* ──────────────────── HMR 状态 ──────────────────── */
   /*
    * hotAcceptCallbacks 存储所有 module.hot.accept() 注册的回调
@@ -592,7 +593,6 @@ function generateHotUpdate(oldHash, changedModuleId) {
 
   // ── hot-update.js：包含变更模块的新代码 ──
   // 浏览器通过 <script> 加载后，会调用 self.webpackHotUpdate()
-  // 模块包裹格式与 generateBundle 中的模块注册表保持一致（箭头函数）
   const updateJS = `
     // hot-update: hash=${oldHash} → 模块 ${changedModuleId} 已更新
     self.webpackHotUpdate("main", {
