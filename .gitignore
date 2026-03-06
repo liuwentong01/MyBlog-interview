@@ -1,1 +1,6 @@
 .DS_Store
+node_modules/
+dist/
+
+# mini-openclaw 运行时数据（会话记录、记忆存储）
+AI/mini-openclaw/data/

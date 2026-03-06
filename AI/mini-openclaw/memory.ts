@@ -12,15 +12,17 @@
  * 简化版：使用 JSON 文件存储 + 关键词匹配搜索（替代向量相似度搜索）
  */
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import type { MemoryEntry, MemorySaveInput, ChatMessage } from './types';
 
 const MEMORY_DIR = path.join(__dirname, 'data', 'memory');
 const MEMORY_FILE = path.join(MEMORY_DIR, 'memories.json');
 
 class MemorySystem {
+  private _memories: MemoryEntry[] = [];
+
   constructor() {
-    this._memories = [];
     this._ensureDir();
     this._load();
   }
@@ -33,8 +35,8 @@ class MemorySystem {
    *
    * @param {object} entry - { content: string, sessionId: string, tags?: string[] }
    */
-  save(entry) {
-    const memory = {
+  save(entry: MemorySaveInput): MemoryEntry {
+    const memory: MemoryEntry = {
       id: `mem_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       content: entry.content,
       sessionId: entry.sessionId || 'unknown',
@@ -56,7 +58,7 @@ class MemorySystem {
    * @param {number} topK - 返回前 K 条最相关的记忆
    * @returns {Array} 相关记忆列表
    */
-  search(query, topK = 3) {
+  search(query: string, topK: number = 3): MemoryEntry[] {
     if (this._memories.length === 0) return [];
 
     // 简化版的相关性搜索：基于关键词匹配
@@ -85,11 +87,11 @@ class MemorySystem {
    *
    * 简化版：从即将被压缩的消息中提取用户消息作为记忆
    */
-  extractFromMessages(messages, sessionId) {
+  extractFromMessages(messages: ChatMessage[], sessionId: string): void {
     const userMessages = messages.filter(m => m.role === 'user');
     if (userMessages.length === 0) return;
 
-    const content = userMessages.map(m => m.content).join(' | ');
+    const content = userMessages.map(m => m.content ?? '').join(' | ');
     this.save({
       content: `历史对话摘要：${content}`,
       sessionId,
@@ -98,14 +100,14 @@ class MemorySystem {
   }
 
   /** 获取所有记忆（调试用） */
-  getAll() {
+  getAll(): MemoryEntry[] {
     return [...this._memories];
   }
 
   // ========== 简易分词（中英文混合） ==========
-  _tokenize(text) {
+  _tokenize(text: string): string[] {
     // 英文按空格分词，中文按双字滑窗分词（简化版的 bigram 分词）
-    const tokens = [];
+    const tokens: string[] = [];
     const cleaned = text.toLowerCase();
 
     // 提取英文单词
@@ -128,27 +130,27 @@ class MemorySystem {
   }
 
   // ========== 持久化 ==========
-  _load() {
+  _load(): void {
     try {
       if (fs.existsSync(MEMORY_FILE)) {
         const data = fs.readFileSync(MEMORY_FILE, 'utf-8');
         this._memories = JSON.parse(data);
       }
     } catch (err) {
-      console.error('[Memory] 加载记忆失败:', err.message);
+      console.error('[Memory] 加载记忆失败:', (err as Error).message);
       this._memories = [];
     }
   }
 
-  _persist() {
+  _persist(): void {
     fs.writeFileSync(MEMORY_FILE, JSON.stringify(this._memories, null, 2), 'utf-8');
   }
 
-  _ensureDir() {
+  _ensureDir(): void {
     if (!fs.existsSync(MEMORY_DIR)) {
       fs.mkdirSync(MEMORY_DIR, { recursive: true });
     }
   }
 }
 
-module.exports = MemorySystem;
+export default MemorySystem;

@@ -37,8 +37,9 @@
  *    → 避免提示词太长导致 AI 表现下降（简化版未实现精细筛选）
  */
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import type { MemoryEntry } from './types';
 
 const WORKSPACE_DIR = path.join(__dirname, 'workspace');
 
@@ -60,12 +61,12 @@ class PromptBuilder {
    * @param {string} context.sessionId - 当前会话 ID
    * @returns {string} 完整的系统提示词
    */
-  build(context = {}) {
+  build(context: { memories?: MemoryEntry[]; toolNames?: string[]; sessionId?: string } = {}) {
     // ====== 每轮都从磁盘读取最新的工作空间文件 ======
     // 这是 OpenClaw 的核心设计：改文件即改行为，无需重启
     const workspaceFiles = this._loadWorkspaceFiles();
 
-    const sections = [];
+    const sections: string[] = [];
     let totalChars = 0;
 
     // === 第一层：工作空间配置文件 ===
@@ -128,8 +129,8 @@ class PromptBuilder {
    *
    * @returns {object} filename -> content 的映射
    */
-  _loadWorkspaceFiles() {
-    const files = {};
+  _loadWorkspaceFiles(): Record<string, string> {
+    const files: Record<string, string> = {};
 
     if (!fs.existsSync(WORKSPACE_DIR)) {
       console.warn(`[PromptBuilder] 工作空间目录不存在: ${WORKSPACE_DIR}`);
@@ -146,7 +147,7 @@ class PromptBuilder {
         }
         files[entry] = content;
       } catch (err) {
-        console.error(`[PromptBuilder] 读取 ${entry} 失败:`, err.message);
+        console.error(`[PromptBuilder] 读取 ${entry} 失败:`, (err as Error).message);
       }
     }
 
@@ -154,4 +155,4 @@ class PromptBuilder {
   }
 }
 
-module.exports = PromptBuilder;
+export default PromptBuilder;

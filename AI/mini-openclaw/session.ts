@@ -27,21 +27,32 @@
  * 后续对话可以通过语义搜索重新找回。
  */
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import type { Session, SessionMetadata, ChatMessage } from './types';
+import MemorySystem from './memory';
 
 const SESSIONS_DIR = path.join(__dirname, 'data', 'sessions');
 
 class SessionManager {
+  maxHistoryLength: number;
+  keepRecentCount: number;
+  memory: MemorySystem | null;
+  private _sessions: Map<string, Session>;
+
   /**
    * @param {object} config
    * @param {number} config.maxHistoryLength - 触发压缩的消息条数阈值
    * @param {number} config.keepRecentCount - 压缩后保留的最近消息条数
    * @param {MemorySystem} config.memory - 记忆系统引用（用于压缩前的 Memory Flush）
    */
-  constructor(config = {}) {
-    this.maxHistoryLength = config.maxHistoryLength || 30;
-    this.keepRecentCount = config.keepRecentCount || 10;
+  constructor(config: {
+    maxHistoryLength?: number;
+    keepRecentCount?: number;
+    memory?: MemorySystem;
+  } = {}) {
+    this.maxHistoryLength = config.maxHistoryLength ?? 30;
+    this.keepRecentCount = config.keepRecentCount ?? 10;
 
     /**
      * 记忆系统引用
@@ -51,10 +62,10 @@ class SessionManager {
      * 将即将被丢弃的旧消息中的重要信息"转移"到记忆系统。
      * 这是 OpenClaw 的 "pre-compaction memory flush" 机制。
      */
-    this.memory = config.memory || null;
+    this.memory = config.memory ?? null;
 
     // 内存中的活跃会话缓存：sessionId -> session
-    this._sessions = new Map();
+    this._sessions = new Map<string, Session>();
 
     this._ensureDir();
   }
@@ -74,7 +85,12 @@ class SessionManager {
    * @param {object} message - 收到的消息
    * @returns {string} 会话 ID
    */
-  resolveSessionId(message) {
+  resolveSessionId(message: {
+    channelType: string;
+    senderId: string;
+    peerKind: string;
+    groupId?: string | null;
+  }): string {
     const { channelType, senderId, peerKind, groupId } = message;
 
     switch (peerKind) {
@@ -92,9 +108,9 @@ class SessionManager {
    * 获取或创建会话
    * 先从内存缓存中查找，未命中则从磁盘加载 .jsonl 文件
    */
-  getOrCreate(sessionId) {
+  getOrCreate(sessionId: string): Session {
     if (this._sessions.has(sessionId)) {
-      return this._sessions.get(sessionId);
+      return this._sessions.get(sessionId)!;
     }
     const session = this._loadFromDisk(sessionId);
     this._sessions.set(sessionId, session);
@@ -107,7 +123,7 @@ class SessionManager {
    * OpenClaw 使用 append-only 的 .jsonl 文件，每条记录有 id + parentId 形成树状结构。
    * 简化版直接追加到数组并全量写入（生产环境应该只 append 新行）。
    */
-  appendMessage(sessionId, message) {
+  appendMessage(sessionId: string, message: ChatMessage): void {
     const session = this.getOrCreate(sessionId);
     session.history.push(message);
     session.metadata.lastActiveAt = Date.now();
@@ -119,7 +135,7 @@ class SessionManager {
    * 获取会话历史（供上下文组装使用）
    * 如果历史过长，先触发压缩
    */
-  getHistory(sessionId) {
+  getHistory(sessionId: string): ChatMessage[] {
     const session = this.getOrCreate(sessionId);
     if (session.history.length > this.maxHistoryLength) {
       this._compact(sessionId, session);
@@ -128,7 +144,7 @@ class SessionManager {
   }
 
   /** 获取所有活跃会话的 ID 列表 */
-  listSessions() {
+  listSessions(): string[] {
     const diskSessions = this._listDiskSessions();
     const memSessions = Array.from(this._sessions.keys());
     return [...new Set([...diskSessions, ...memSessions])];
@@ -151,7 +167,7 @@ class SessionManager {
    *
    *   4. 替换：用 [摘要 + 最近 N 条消息] 替换完整历史
    */
-  _compact(sessionId, session) {
+  private _compact(sessionId: string, session: Session): void {
     const cutIndex = session.history.length - this.keepRecentCount;
     if (cutIndex <= 0) return;
 
@@ -179,7 +195,7 @@ class SessionManager {
   }
 
   /** 生成历史摘要（简化版用关键词提取，实际应调用 LLM） */
-  _generateSummary(messages) {
+  private _generateSummary(messages: ChatMessage[]): string {
     const userMessages = messages
       .filter(m => m.role === 'user')
       .map(m => m.content)
@@ -192,12 +208,12 @@ class SessionManager {
   // OpenClaw 使用 .jsonl (JSON Lines) 格式：每行一个 JSON 对象
   // 第一行是 metadata，后续行是历史消息记录
 
-  _getFilePath(sessionId) {
+  private _getFilePath(sessionId: string): string {
     const safeName = sessionId.replace(/[/:]/g, '_');
     return path.join(SESSIONS_DIR, `${safeName}.jsonl`);
   }
 
-  _loadFromDisk(sessionId) {
+  private _loadFromDisk(sessionId: string): Session {
     const filePath = this._getFilePath(sessionId);
 
     if (!fs.existsSync(filePath)) {
@@ -218,11 +234,11 @@ class SessionManager {
         };
       }
       const lines = content.split('\n').filter(Boolean);
-      const metadata = JSON.parse(lines[0]);
-      const history = lines.slice(1).map(line => JSON.parse(line));
+      const metadata = JSON.parse(lines[0]) as SessionMetadata;
+      const history = lines.slice(1).map(line => JSON.parse(line) as ChatMessage);
       return { id: sessionId, history, metadata };
     } catch (err) {
-      console.error(`[Session] 加载会话失败 ${sessionId}:`, err.message);
+      console.error(`[Session] 加载会话失败 ${sessionId}:`, (err as Error).message);
       return {
         id: sessionId,
         history: [],
@@ -231,7 +247,7 @@ class SessionManager {
     }
   }
 
-  _saveToDisk(sessionId, session) {
+  private _saveToDisk(sessionId: string, session: Session): void {
     const filePath = this._getFilePath(sessionId);
     const lines = [
       JSON.stringify(session.metadata),
@@ -240,7 +256,7 @@ class SessionManager {
     fs.writeFileSync(filePath, lines.join('\n') + '\n', 'utf-8');
   }
 
-  _listDiskSessions() {
+  private _listDiskSessions(): string[] {
     if (!fs.existsSync(SESSIONS_DIR)) return [];
     return fs
       .readdirSync(SESSIONS_DIR)
@@ -248,11 +264,11 @@ class SessionManager {
       .map(f => f.replace('.jsonl', '').replace(/_/g, ':'));
   }
 
-  _ensureDir() {
+  private _ensureDir(): void {
     if (!fs.existsSync(SESSIONS_DIR)) {
       fs.mkdirSync(SESSIONS_DIR, { recursive: true });
     }
   }
 }
 
-module.exports = SessionManager;
+export default SessionManager;

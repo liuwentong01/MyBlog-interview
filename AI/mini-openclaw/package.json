@@ -1,13 +1,20 @@
 {
   "name": "mini-openclaw",
-  "version": "1.0.0",
-  "description": "简易 OpenClaw 实现 - 用于学习 AI Agent 架构",
-  "main": "index.js",
+  "version": "2.0.0",
+  "description": "简易 OpenClaw 实现 - 用于学习 AI Agent 架构 (TypeScript 版)",
+  "main": "index.ts",
   "scripts": {
-    "start": "OPENCLAW_PORT=3003 node index.js",
-    "start:real": "OPENCLAW_PORT=3003 OPENCLAW_LLM=real OPENAI_API_KEY=your-key-here node index.js"
+    "start": "OPENCLAW_PORT=3003 tsx index.ts",
+    "start:real": "OPENCLAW_PORT=3003 OPENCLAW_LLM=real OPENAI_API_KEY=your-key-here tsx index.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.0",
+    "tsx": "^4.19.0"
   }
 }

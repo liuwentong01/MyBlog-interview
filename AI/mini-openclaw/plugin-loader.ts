@@ -16,13 +16,25 @@
  * 每个插件是一个目录，包含 index.js，导出 { name, tools: [...] }
  */
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import ToolSystem from './tool-system';
+import type { PluginExport, ToolDefinition } from './types';
 
 const EXTENSIONS_DIR = path.join(__dirname, 'extensions');
 
+interface LoadedPluginInfo {
+  name: string;
+  description: string;
+  toolCount: number;
+  dir: string;
+}
+
 class PluginLoader {
-  constructor(toolSystem) {
+  private _toolSystem: ToolSystem;
+  private _plugins: LoadedPluginInfo[];
+
+  constructor(toolSystem: ToolSystem) {
     // 关联的工具系统，加载的工具插件会注册到这里
     this._toolSystem = toolSystem;
     // 已加载的插件列表
@@ -48,10 +60,10 @@ class PluginLoader {
    *     ]
    *   };
    */
-  loadAll() {
+  loadPlugins(): number {
     if (!fs.existsSync(EXTENSIONS_DIR)) {
       console.log('[Plugin] extensions/ 目录不存在，跳过插件加载');
-      return;
+      return 0;
     }
 
     const entries = fs.readdirSync(EXTENSIONS_DIR, { withFileTypes: true });
@@ -62,10 +74,11 @@ class PluginLoader {
     }
 
     console.log(`[Plugin] 插件加载完成，共加载 ${this._plugins.length} 个插件`);
+    return this._plugins.length;
   }
 
   /** 获取已加载插件列表 */
-  getPlugins() {
+  getPlugins(): LoadedPluginInfo[] {
     return [...this._plugins];
   }
 
@@ -78,7 +91,7 @@ class PluginLoader {
    * 3. 将工具注册到 ToolSystem
    * 4. 记录插件信息
    */
-  _loadPlugin(dirName) {
+  private _loadPlugin(dirName: string): void {
     const pluginPath = path.join(EXTENSIONS_DIR, dirName, 'index.js');
 
     if (!fs.existsSync(pluginPath)) {
@@ -87,7 +100,7 @@ class PluginLoader {
     }
 
     try {
-      const plugin = require(pluginPath);
+      const plugin = require(pluginPath) as PluginExport;
 
       if (!plugin.name) {
         console.warn(`[Plugin] ${dirName}/ 缺少 name 字段，跳过`);
@@ -111,9 +124,9 @@ class PluginLoader {
 
       console.log(`[Plugin] 加载插件: ${plugin.name}`);
     } catch (err) {
-      console.error(`[Plugin] 加载 ${dirName} 失败:`, err.message);
+      console.error(`[Plugin] 加载 ${dirName} 失败:`, (err as Error).message);
     }
   }
 }
 
-module.exports = PluginLoader;
+export default PluginLoader;

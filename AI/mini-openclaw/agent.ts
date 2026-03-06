@@ -3,7 +3,7 @@
  *
  * 对应 OpenClaw 架构中的 Agent Runtime，是整个系统最核心的部分。
  *
- * Agent 是真正执行 AI 对话和工具调用的地方，相当于 AI 的"工作台"。
+ * Agent 是真正执行 AI 对话和工具调用的地方。
  * 每轮对话严格执行四个步骤：
  *
  *   步骤 1：会话解析 (Session Resolution)
@@ -32,9 +32,51 @@
  * 这种设计使得 Gateway 和 Agent 松耦合：Gateway 只负责路由，不关心 AI 怎么思考。
  */
 
-const EventEmitter = require('events');
+import { EventEmitter } from 'events';
+import type {
+  IncomingMessage,
+  AgentResponse,
+  ChatMessage,
+  LLMToolCall,
+  ToolCallRecord,
+  LLMToolDefinition,
+} from './types';
+import ToolSystem from './tool-system';
+import SessionManager from './session';
+import MemorySystem from './memory';
+import PromptBuilder from './prompt-builder';
+import type { LLMProvider } from './types';
+
+interface AgentDeps {
+  toolSystem: ToolSystem;
+  sessionManager: SessionManager;
+  memory: MemorySystem;
+  promptBuilder: PromptBuilder;
+  llmProvider: LLMProvider;
+  maxToolRounds?: number;
+}
+
+interface AssembledContext {
+  sessionId: string;
+  systemPrompt: string;
+  history: ChatMessage[];
+  tools: LLMToolDefinition[];
+  currentMessage: IncomingMessage;
+}
+
+interface ExecutionResult {
+  finalContent: string;
+  toolCallLog: ToolCallRecord[];
+}
 
 class Agent extends EventEmitter {
+  private sessionManager: SessionManager;
+  private memory: MemorySystem;
+  private promptBuilder: PromptBuilder;
+  private toolSystem: ToolSystem;
+  private llmProvider: LLMProvider;
+  private maxToolRounds: number;
+
   /**
    * @param {object} deps - 依赖注入（OpenClaw 中 Agent 通过依赖注入组装各模块）
    * @param {SessionManager} deps.sessionManager - 会话管理器
@@ -43,7 +85,14 @@ class Agent extends EventEmitter {
    * @param {ToolSystem} deps.toolSystem - 工具系统
    * @param {LLMProvider} deps.llmProvider - LLM 提供商
    */
-  constructor({ sessionManager, memory, promptBuilder, toolSystem, llmProvider }) {
+  constructor({
+    toolSystem,
+    sessionManager,
+    memory,
+    promptBuilder,
+    llmProvider,
+    maxToolRounds = 5,
+  }: AgentDeps) {
     super();
     this.sessionManager = sessionManager;
     this.memory = memory;
@@ -53,7 +102,7 @@ class Agent extends EventEmitter {
 
     // 工具调用最大循环次数，防止无限循环
     // OpenClaw 中也有类似的安全阀机制
-    this.maxToolRounds = 5;
+    this.maxToolRounds = maxToolRounds;
   }
 
   /**
@@ -68,9 +117,9 @@ class Agent extends EventEmitter {
    *
    * @param {object} message - 经过 Gateway 访问控制后的消息
    *   { id, channelType, senderId, senderName, text, timestamp, peerKind, groupId }
-   * @returns {Promise<object>} 回复消息（同时也会通过 agent:response 事件发射）
+   * @returns {Promise<void>} 回复消息（同时也会通过 agent:response 事件发射）
    */
-  async processMessage(message) {
+  async processMessage(message: IncomingMessage): Promise<void> {
     const messageId = message.id;
     const startTime = Date.now();
 
@@ -102,7 +151,7 @@ class Agent extends EventEmitter {
       console.log(`[Agent] 步骤4 - 状态已保存`);
 
       // 构造回复
-      const response = {
+      const response: AgentResponse = {
         id: `resp_${Date.now()}`,
         messageId,
         sessionId,
@@ -115,8 +164,6 @@ class Agent extends EventEmitter {
       // 发射"最终回复"事件 → Gateway 监听后路由到对应的渠道连接
       this.emit('agent:response', { messageId, response });
       console.log(`[Agent] 消息处理完成，总耗时 ${response.processingTime}ms`);
-
-      return response;
     } catch (err) {
       console.error('[Agent] 处理消息出错:', err);
 
@@ -139,7 +186,10 @@ class Agent extends EventEmitter {
    * 这些信息一起构成发给 LLM 的完整请求。
    * OpenClaw 会智能筛选，只注入当前这轮需要的内容，避免提示词过长。
    */
-  async _assembleContext(sessionId, message) {
+  private async _assembleContext(
+    sessionId: string,
+    message: IncomingMessage
+  ): Promise<AssembledContext> {
     // 2a. 搜索相关记忆
     // OpenClaw 使用 embedding 向量 + 余弦相似度，简化版用关键词匹配
     const memories = this.memory.search(message.text, 3);
@@ -182,17 +232,20 @@ class Agent extends EventEmitter {
    * @param {object} context - assembleContext 的返回值
    * @param {string} messageId - 消息 ID（用于事件关联）
    */
-  async _executionLoop(context, messageId) {
+  private async _executionLoop(
+    context: AssembledContext,
+    messageId: string
+  ): Promise<ExecutionResult> {
     const { systemPrompt, history, tools, currentMessage } = context;
 
     // 构建发给 LLM 的消息列表（会话历史 + 当前用户消息）
-    const messages = [
+    const messages: ChatMessage[] = [
       ...history,
       { role: 'user', content: currentMessage.text },
     ];
 
     // 记录所有工具调用（用于调试和展示）
-    const toolCallLog = [];
+    const toolCallLog: ToolCallRecord[] = [];
 
     let round = 0;
     while (round < this.maxToolRounds) {
@@ -224,7 +277,9 @@ class Agent extends EventEmitter {
 
       // 依次执行每个工具调用
       for (const toolCall of llmResponse.toolCalls) {
-        console.log(`[Agent]   调用工具: ${toolCall.name}(${JSON.stringify(toolCall.arguments)})`);
+        console.log(
+          `[Agent]   调用工具: ${toolCall.name}(${JSON.stringify(toolCall.arguments)})`
+        );
 
         // 发射工具调用事件 → Gateway 实时通知前端
         this.emit('agent:tool_call', {
@@ -235,7 +290,10 @@ class Agent extends EventEmitter {
         });
 
         // 执行工具
-        const result = await this.toolSystem.execute(toolCall.name, toolCall.arguments);
+        const result = await this.toolSystem.execute(
+          toolCall.name,
+          toolCall.arguments
+        );
 
         // 记录工具调用详情
         toolCallLog.push({
@@ -275,7 +333,11 @@ class Agent extends EventEmitter {
    *
    * 所有数据都存在本地磁盘，不上传到云端（OpenClaw 的"own your data"理念）
    */
-  async _saveState(sessionId, message, result) {
+  private async _saveState(
+    sessionId: string,
+    message: IncomingMessage,
+    result: ExecutionResult
+  ): Promise<void> {
     // 保存用户消息
     this.sessionManager.appendMessage(sessionId, {
       role: 'user',
@@ -285,7 +347,7 @@ class Agent extends EventEmitter {
     // 如果有工具调用，保存工具调用记录
     if (result.toolCallLog && result.toolCallLog.length > 0) {
       const toolSummary = result.toolCallLog
-        .map(tc => `[工具:${tc.name}] ${tc.result.slice(0, 100)}`)
+        .map((tc) => `[工具:${tc.name}] ${tc.result.slice(0, 100)}`)
         .join('\n');
       this.sessionManager.appendMessage(sessionId, {
         role: 'assistant',
@@ -309,4 +371,4 @@ class Agent extends EventEmitter {
   }
 }
 
-module.exports = Agent;
+export default Agent;

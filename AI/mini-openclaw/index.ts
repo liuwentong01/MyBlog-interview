@@ -5,40 +5,80 @@
  * 它是理解整个架构的最佳起点——通过观察各组件如何被创建和连接，
  * 可以一目了然地看到 OpenClaw 的全局架构。
  *
- * ===== OpenClaw 启动流程 =====
+ * ===== 启动流程图 =====
  *
- * 1. 初始化工具系统 (ToolSystem)   → 注册内置工具
- * 2. 加载插件 (PluginLoader)       → 扫描 extensions/ 目录，注册插件工具
- * 3. 初始化记忆系统 (MemorySystem) → 长期记忆存储和检索
- * 4. 初始化会话管理器 (SessionManager) → 注入 memory 引用（用于压缩前的 Memory Flush）
- * 5. 初始化提示词组装器 (PromptBuilder)
- * 6. 创建 LLM 提供商 (LLMProvider)
- * 7. 创建 Agent (核心引擎)         → 注入所有依赖
- * 8. 创建 Gateway (网关)           → 注入 Agent，订阅其事件
- * 9. 创建渠道适配器 (Channels)     → 注册到 Gateway
- * 10. 连接渠道到 Gateway           → CLI 和 Web 都通过 Gateway 统一入口
+ *  ┌─────────────┐   ┌──────────────┐
+ *  │ ToolSystem  │   │ PluginLoader │
+ *  │ (内置工具)   │◄──│ (扫描插件)    │
+ *  └──────┬──────┘   └──────────────┘
+ *         │
+ *         │  ┌──────────────┐   ┌────────────────┐
+ *         │  │ MemorySystem │◄──│ SessionManager │
+ *         │  │ (长期记忆)    │   │ (会话+压缩)     │
+ *         │  └──────┬───────┘   └───────┬────────┘
+ *         │         │                   │
+ *         │  ┌──────┴───────┐   ┌───────┴────────┐
+ *         │  │ PromptBuilder│   │  LLMProvider   │
+ *         │  │ (提示词组装)  │   │  (Mock/真实API) │
+ *         │  └──────┬───────┘   └───────┬────────┘
+ *         │         │                   │
+ *         ▼         ▼                   ▼
+ *  ┌─────────────────────────────────────────────┐
+ *  │          Agent (核心引擎，依赖注入)           │
+ *  │  接收所有依赖，执行 4 步对话处理流程          │
+ *  └────────────────────┬────────────────────────┘
+ *                       │ 注入
+ *                       ▼
+ *  ┌─────────────────────────────────────────────┐
+ *  │        Gateway (网关，消息唯一入口)           │
+ *  │  订阅 Agent 事件，路由结果到对应渠道          │
+ *  └───────┬─────────────────────────┬───────────┘
+ *          │ 注册                     │ 注册
+ *          ▼                         ▼
+ *  ┌──────────────┐          ┌──────────────┐
+ *  │  CLIChannel  │          │  WebChannel  │
+ *  │  (命令行)     │          │  (浏览器)     │
+ *  └──────────────┘          └──────────────┘
  *
- * ===== 消息流转（所有渠道统一路径） =====
+ * ===== 消息流转图（所有渠道统一路径） =====
  *
- *   用户 → Channel Adapter → Gateway.submitMessage()
- *     → 访问控制 → 幂等键检查 → Agent.processMessage()
- *       → [会话解析 → 上下文组装 → LLM + Tools 执行循环 → 保存状态]
- *       → Agent 发射事件 (agent:response)
- *     → Gateway 路由事件到对应渠道
- *   → Channel Adapter → 用户
+ *  用户输入
+ *    │
+ *    ▼
+ *  Channel Adapter ──parseIncoming()──► 统一消息格式
+ *    │
+ *    ▼
+ *  Gateway.submitMessage()
+ *    ├── checkAccess()  ──► 访问控制（白名单/配对/群聊策略）
+ *    ├── 幂等键检查     ──► 命中缓存则直接返回
+ *    └── 注册 pending   ──► _pendingMessages[messageId]
+ *          │
+ *          ▼  异步分发（fire-and-forget）
+ *  Agent.processMessage()
+ *    ├── 步骤1: 会话解析    → resolveSessionId()
+ *    ├── 步骤2: 上下文组装  → 历史 + 记忆 + 系统提示词 + 工具定义
+ *    ├── 步骤3: 执行循环    → LLM ⇄ Tool（最多 5 轮）
+ *    └── 步骤4: 保存状态    → 会话持久化 + 记忆提取
+ *          │
+ *          ▼  emit('agent:response')
+ *  Gateway 事件路由
+ *    │  通过 messageId 查找 pending → 调用 callbacks
+ *    ▼
+ *  Channel Adapter ──formatOutgoing()──► 用户看到回复
  *
  * 关键点：CLI 和 Web 走的是完全相同的路径，都经过 Gateway。
  */
 
-const ToolSystem = require('./tool-system');
-const PluginLoader = require('./plugin-loader');
-const SessionManager = require('./session');
-const MemorySystem = require('./memory');
-const PromptBuilder = require('./prompt-builder');
-const { createLLMProvider } = require('./llm-provider');
-const Agent = require('./agent');
-const Gateway = require('./gateway');
-const { CLIChannel, WebChannel } = require('./channel-adapter');
+import ToolSystem from './tool-system';
+import PluginLoader from './plugin-loader';
+import SessionManager from './session';
+import MemorySystem from './memory';
+import PromptBuilder from './prompt-builder';
+import { createLLMProvider } from './llm-provider';
+import Agent from './agent';
+import { CLIChannel, WebChannel } from './channel-adapter';
+import Gateway from './gateway';
+import type { SubmitCallbacks } from './types';
 
 async function main() {
   console.log('='.repeat(50));
@@ -53,7 +93,7 @@ async function main() {
 
   // ========== 2. 加载插件 ==========
   const pluginLoader = new PluginLoader(toolSystem);
-  pluginLoader.loadAll();
+  pluginLoader.loadPlugins();
 
   // ========== 3. 初始化记忆系统 ==========
   // 记忆系统需要在 SessionManager 之前创建，
@@ -78,7 +118,7 @@ async function main() {
 
   // ========== 6. 创建 LLM 提供商 ==========
   // 默认 Mock 模式（无需 API Key）；设置 OPENCLAW_LLM=real 可切换到真实 API
-  const llmProvider = createLLMProvider();
+  const llmProvider = createLLMProvider({ type: process.env.OPENCLAW_LLM });
 
   // ========== 7. 创建 Agent ==========
   // Agent 是核心引擎，通过依赖注入整合所有模块
@@ -94,8 +134,9 @@ async function main() {
   // ========== 8. 创建 Gateway ==========
   // Gateway 是消息的唯一入口，所有渠道的消息都通过 Gateway.submitMessage() 处理
   // Gateway 订阅 Agent 事件，将结果路由回对应的渠道连接
+  const PORT = parseInt(process.env.OPENCLAW_PORT || '3003', 10);
   const gateway = new Gateway({
-    port: parseInt(process.env.OPENCLAW_PORT || '18789', 10),
+    port: PORT,
     host: process.env.OPENCLAW_HOST || '127.0.0.1',
     agent,
   });
@@ -123,7 +164,7 @@ async function main() {
   cliChannel.on('message', (rawText) => {
     console.log(`\n[CLI → Gateway] 收到消息: "${rawText}"`);
 
-    gateway.submitMessage('cli', rawText, {
+    const callbacks: SubmitCallbacks = {
       onEvent: (type, payload) => {
         // 中间事件：工具调用时实时展示
         if (type === 'tool_call') {
@@ -139,7 +180,9 @@ async function main() {
         console.error(`  ❌ 错误: ${err.message}`);
         cliChannel.onResponseSent();
       },
-    });
+    };
+
+    gateway.submitMessage('cli', rawText, callbacks);
   });
 
   // ========== 启动服务 ==========

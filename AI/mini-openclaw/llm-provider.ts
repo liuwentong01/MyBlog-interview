@@ -14,17 +14,16 @@
  * - RealLLMProvider：调用 OpenAI API（需要 API Key）
  */
 
-const https = require('https');
+import https from 'https';
+import type { LLMProvider, LLMRequest, LLMResponse, LLMToolCall } from './types';
 
 // ========================================================================
 // MockLLMProvider - 模拟 LLM
 // 使用模式匹配来模拟真实 LLM 的行为，包括工具调用
 // 适合在没有 API Key 的情况下学习和测试完整流程
 // ========================================================================
-class MockLLMProvider {
-  constructor() {
-    this.name = 'mock';
-  }
+class MockLLMProvider implements LLMProvider {
+  name = 'mock';
 
   /**
    * 模拟 LLM 聊天接口
@@ -35,7 +34,7 @@ class MockLLMProvider {
    *   - tools: Array - 可用工具定义
    * @returns {Promise<{ content, toolCalls, finishReason }>}
    */
-  async chat(request) {
+  async chat(request: LLMRequest): Promise<LLMResponse> {
     const { messages, tools = [] } = request;
     const lastMsg = messages[messages.length - 1];
     const toolNames = tools.map(t => t.function.name);
@@ -145,7 +144,7 @@ class MockLLMProvider {
 
   // ========== 辅助方法 ==========
 
-  _toolCallResponse(name, args) {
+  _toolCallResponse(name: string, args: Record<string, unknown>): LLMResponse {
     return {
       content: null,
       toolCalls: [{
@@ -157,23 +156,23 @@ class MockLLMProvider {
     };
   }
 
-  _match(text, keywords) {
+  _match(text: string, keywords: string[]): boolean {
     return keywords.some(kw => text.includes(kw));
   }
 
-  _extractQuoted(text) {
+  _extractQuoted(text: string): string | null {
     const match = text.match(/['"`''""]([^'"`''""]+)['"`''""]/);
     return match ? match[1] : null;
   }
 
-  _extractAfter(text, prefix) {
+  _extractAfter(text: string, prefix: string): string | null {
     const idx = text.indexOf(prefix);
     if (idx === -1) return null;
     const after = text.slice(idx + prefix.length).trim();
     return after.split(/\s/)[0] || null;
   }
 
-  _extractName(text) {
+  _extractName(text: string): string | null {
     // 匹配 "给XX打招呼" / "跟XX问候" 等模式
     const match = text.match(/[给跟向对]\s*(.+?)\s*(?:打招呼|问候|问好)/);
     if (match) return match[1];
@@ -183,14 +182,14 @@ class MockLLMProvider {
     return null;
   }
 
-  _formatToolResults(results) {
+  _formatToolResults(results: (string | null)[]): string {
     if (results.length === 1) {
       return `好的，这是结果：\n\n${results[0]}`;
     }
     return `以下是执行结果：\n\n${results.map((r, i) => `**结果 ${i + 1}:**\n${r}`).join('\n\n')}`;
   }
 
-  _delay(ms) {
+  _delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
@@ -199,10 +198,14 @@ class MockLLMProvider {
 // RealLLMProvider - 真实 LLM API 调用
 // 调用 OpenAI Chat Completions API（也兼容其他 OpenAI 兼容的 API）
 // ========================================================================
-class RealLLMProvider {
-  constructor(config = {}) {
-    this.name = 'real';
-    this.apiKey = config.apiKey || process.env.OPENAI_API_KEY;
+class RealLLMProvider implements LLMProvider {
+  name = 'real';
+  private apiKey: string;
+  private baseUrl: string;
+  private model: string;
+
+  constructor(config: { apiKey?: string; baseUrl?: string; model?: string } = {}) {
+    this.apiKey = config.apiKey || process.env.OPENAI_API_KEY || '';
     this.baseUrl = config.baseUrl || 'https://api.openai.com';
     this.model = config.model || 'gpt-4o-mini';
 
@@ -211,7 +214,7 @@ class RealLLMProvider {
     }
   }
 
-  async chat(request) {
+  async chat(request: LLMRequest): Promise<LLMResponse> {
     const { systemPrompt, messages, tools } = request;
 
     // 构建 OpenAI 格式的消息
@@ -236,7 +239,7 @@ class RealLLMProvider {
       }),
     ];
 
-    const body = {
+    const body: Record<string, unknown> = {
       model: this.model,
       messages: apiMessages,
     };
@@ -251,7 +254,7 @@ class RealLLMProvider {
     if (choice.finish_reason === 'tool_calls' && choice.message.tool_calls) {
       return {
         content: choice.message.content,
-        toolCalls: choice.message.tool_calls.map(tc => ({
+        toolCalls: choice.message.tool_calls.map((tc: { id: string; function: { name: string; arguments: string } }) => ({
           id: tc.id,
           name: tc.function.name,
           arguments: JSON.parse(tc.function.arguments),
@@ -267,7 +270,7 @@ class RealLLMProvider {
     };
   }
 
-  _post(path, body) {
+  _post(path: string, body: Record<string, unknown>): Promise<any> {
     return new Promise((resolve, reject) => {
       const url = new URL(path, this.baseUrl);
       const postData = JSON.stringify(body);
@@ -289,7 +292,7 @@ class RealLLMProvider {
         res.on('end', () => {
           try {
             const parsed = JSON.parse(data);
-            if (res.statusCode >= 400) {
+            if (res.statusCode && res.statusCode >= 400) {
               reject(new Error(`API 错误 (${res.statusCode}): ${parsed.error?.message || data}`));
             } else {
               resolve(parsed);
@@ -310,7 +313,7 @@ class RealLLMProvider {
 // ========================================================================
 // 工厂函数：根据配置创建对应的 LLM Provider
 // ========================================================================
-function createLLMProvider(config = {}) {
+function createLLMProvider(config: { type?: string; apiKey?: string; baseUrl?: string; model?: string } = {}): LLMProvider {
   const type = config.type || process.env.OPENCLAW_LLM || 'mock';
 
   if (type === 'real') {
@@ -322,4 +325,4 @@ function createLLMProvider(config = {}) {
   return new MockLLMProvider();
 }
 
-module.exports = { MockLLMProvider, RealLLMProvider, createLLMProvider };
+export { MockLLMProvider, RealLLMProvider, createLLMProvider };

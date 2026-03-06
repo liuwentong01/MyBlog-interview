@@ -10,14 +10,17 @@
  * 这里我们实现内置的 shell、file、time 三种工具作为演示。
  */
 
-const { execSync } = require('child_process');
-const fs = require('fs');
-const path = require('path');
+import { execSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import type { ToolDefinition, LLMToolDefinition } from './types';
 
 class ToolSystem {
+  private _tools: Map<string, ToolDefinition>;
+
   constructor() {
     // 工具注册表：name -> { name, description, parameters, execute }
-    this._tools = new Map();
+    this._tools = new Map<string, ToolDefinition>();
 
     // 注册内置工具
     this._registerBuiltinTools();
@@ -28,7 +31,7 @@ class ToolSystem {
    * OpenClaw 中工具通过 ToolPlugin 接口注册，
    * 每个工具需要提供名称、描述、参数 schema 和执行函数
    */
-  register(toolDef) {
+  register(toolDef: ToolDefinition): void {
     if (!toolDef.name || !toolDef.execute) {
       throw new Error(`工具定义不完整，需要 name 和 execute: ${JSON.stringify(toolDef)}`);
     }
@@ -36,12 +39,12 @@ class ToolSystem {
   }
 
   /** 注销一个工具 */
-  unregister(name) {
+  unregister(name: string): void {
     this._tools.delete(name);
   }
 
   /** 获取所有已注册工具的名称 */
-  getToolNames() {
+  getToolNames(): string[] {
     return Array.from(this._tools.keys());
   }
 
@@ -50,9 +53,9 @@ class ToolSystem {
    * 格式参照 OpenAI function calling 的 tools 格式，
    * OpenClaw 也采用类似格式让 LLM 知道有哪些工具可用
    */
-  getToolDefinitions() {
+  getToolDefinitions(): LLMToolDefinition[] {
     return Array.from(this._tools.values()).map(tool => ({
-      type: 'function',
+      type: 'function' as const,
       function: {
         name: tool.name,
         description: tool.description,
@@ -70,7 +73,7 @@ class ToolSystem {
    * @param {object} args - 工具参数
    * @returns {Promise<string>} 执行结果（文本）
    */
-  async execute(name, args) {
+  async execute(name: string, args: Record<string, unknown>): Promise<string> {
     const tool = this._tools.get(name);
     if (!tool) {
       return `错误：未找到工具 "${name}"，可用工具：${this.getToolNames().join(', ')}`;
@@ -79,7 +82,7 @@ class ToolSystem {
       const result = await tool.execute(args);
       return String(result);
     } catch (err) {
-      return `工具 "${name}" 执行出错：${err.message}`;
+      return `工具 "${name}" 执行出错：${(err as Error).message}`;
     }
   }
 
@@ -88,7 +91,7 @@ class ToolSystem {
    * OpenClaw 内置了 shell、browser、file 等工具，
    * 这里我们实现三个最核心的：时间、文件操作、Shell 命令
    */
-  _registerBuiltinTools() {
+  _registerBuiltinTools(): void {
     // ========== 工具 1: 获取当前时间 ==========
     this.register({
       name: 'get_current_time',
@@ -113,8 +116,8 @@ class ToolSystem {
           path: { type: 'string', description: '目录路径，默认为当前目录' },
         },
       },
-      execute: async (args) => {
-        const targetPath = args.path || '.';
+      execute: async (args: Record<string, unknown>) => {
+        const targetPath = (args.path as string) || '.';
         const resolved = path.resolve(targetPath);
         const entries = fs.readdirSync(resolved, { withFileTypes: true });
         const lines = entries.map(e => {
@@ -137,14 +140,14 @@ class ToolSystem {
         },
         required: ['path'],
       },
-      execute: async (args) => {
-        const filePath = path.resolve(args.path);
+      execute: async (args: Record<string, unknown>) => {
+        const filePath = path.resolve(args.path as string);
         if (!fs.existsSync(filePath)) {
           return `文件不存在：${filePath}`;
         }
         const content = fs.readFileSync(filePath, 'utf-8');
         const lines = content.split('\n');
-        const maxLines = args.maxLines || 50;
+        const maxLines = (args.maxLines as number) || 50;
         const truncated = lines.length > maxLines;
         const output = lines.slice(0, maxLines).join('\n');
         return truncated
@@ -165,8 +168,8 @@ class ToolSystem {
         },
         required: ['command'],
       },
-      execute: async (args) => {
-        const cmd = args.command;
+      execute: async (args: Record<string, unknown>) => {
+        const cmd = args.command as string;
         // 安全限制：禁止危险命令
         const dangerous = ['rm -rf', 'mkfs', 'dd if=', ':(){', 'fork bomb'];
         if (dangerous.some(d => cmd.includes(d))) {
@@ -180,11 +183,11 @@ class ToolSystem {
           });
           return `命令 \`${cmd}\` 的输出：\n${output.trim() || '(无输出)'}`;
         } catch (err) {
-          return `命令执行失败：${err.message}`;
+          return `命令执行失败：${(err as Error).message}`;
         }
       },
     });
   }
 }
 
-module.exports = ToolSystem;
+export default ToolSystem;

@@ -1,5 +1,5 @@
 /**
- * channel-adapter.js - 渠道适配器
+ * channel-adapter.ts - 渠道适配器
  *
  * 对应 OpenClaw 架构中的 Channel Adapter，负责：
  * 1. 连接不同的聊天平台（WhatsApp、Telegram、Discord、CLI、Web 等）
@@ -13,15 +13,21 @@
  * 简化版实现两个渠道：CLI（命令行）和 Web（浏览器）
  */
 
-const readline = require('readline');
-const EventEmitter = require('events');
+import readline from 'readline';
+import { EventEmitter } from 'events';
+import type { IncomingMessage, AgentResponse } from './types';
+import type { WebSocket } from 'ws';
 
 // ========================================================================
 // BaseChannel - 渠道适配器基类
 // 所有渠道都继承这个基类，实现统一的消息收发接口
 // ========================================================================
 class BaseChannel extends EventEmitter {
-  constructor(name) {
+  name: string;
+  allowlist: Set<string>;
+  requireMention: boolean;
+
+  constructor(name: string) {
     super();
     this.name = name;
     // 访问控制白名单
@@ -37,15 +43,19 @@ class BaseChannel extends EventEmitter {
    * @param {any} rawMessage - 平台原始消息
    * @returns {object} 统一格式的消息
    */
-  parseIncoming(rawMessage) {
+  parseIncoming(rawInput: string): IncomingMessage {
     throw new Error('子类必须实现 parseIncoming 方法');
   }
 
   /**
    * 将 Agent 回复格式化为平台特定格式并发送
    * 处理 Markdown 转换、长消息切分、媒体上传等
+   *
+   * 支持两种调用方式（兼容现有调用方）：
+   * - formatOutgoing(response) 传入完整 AgentResponse
+   * - formatOutgoing(text, metadata) 传入文本和元数据
    */
-  formatOutgoing(response) {
+  formatOutgoing(textOrResponse: string | AgentResponse, metadata?: Record<string, unknown>): string {
     throw new Error('子类必须实现 formatOutgoing 方法');
   }
 
@@ -59,18 +69,18 @@ class BaseChannel extends EventEmitter {
    *
    * @returns {boolean} 是否允许处理该消息
    */
-  checkAccess(senderId) {
+  checkAccess(senderId: string): boolean {
     if (this.allowlist.size === 0) return true;
     return this.allowlist.has(senderId);
   }
 
   /** 启动渠道 */
-  start() {
+  start(): void {
     throw new Error('子类必须实现 start 方法');
   }
 
   /** 停止渠道 */
-  stop() {
+  stop(): void {
     throw new Error('子类必须实现 stop 方法');
   }
 }
@@ -79,13 +89,23 @@ class BaseChannel extends EventEmitter {
 // CLIChannel - 命令行渠道
 // 最简单的渠道实现，通过 stdin/stdout 交互
 // ========================================================================
+interface CLIChannelConfig {
+  userName?: string;
+  userId?: string;
+  allowedUsers?: string[];
+}
+
 class CLIChannel extends BaseChannel {
-  constructor() {
+  _rl: readline.Interface | null = null;
+
+  constructor(config: CLIChannelConfig = {}) {
     super('cli');
-    this._rl = null;
+    if (config.allowedUsers) {
+      config.allowedUsers.forEach((u) => this.allowlist.add(u));
+    }
   }
 
-  start() {
+  start(): void {
     this._rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
@@ -96,14 +116,14 @@ class CLIChannel extends BaseChannel {
     this._prompt();
   }
 
-  stop() {
+  stop(): void {
     if (this._rl) {
       this._rl.close();
       this._rl = null;
     }
   }
 
-  parseIncoming(text) {
+  parseIncoming(text: string): IncomingMessage {
     return {
       id: `msg_${Date.now()}`,
       channelType: 'cli',
@@ -118,21 +138,25 @@ class CLIChannel extends BaseChannel {
     };
   }
 
-  formatOutgoing(response) {
-    console.log(`\n🤖 AI: ${response.text}`);
+  formatOutgoing(textOrResponse: string | AgentResponse, metadata?: Record<string, unknown>): string {
+    const response = typeof textOrResponse === 'object' ? textOrResponse : (metadata as AgentResponse | undefined);
+    const text = typeof textOrResponse === 'string' ? textOrResponse : textOrResponse.text;
+    console.log(`\n🤖 AI: ${text}`);
 
     // 如果有工具调用，展示调用详情
-    if (response.toolCalls && response.toolCalls.length > 0) {
+    if (response?.toolCalls && response.toolCalls.length > 0) {
       console.log('\n📋 工具调用记录:');
       for (const tc of response.toolCalls) {
         console.log(`   🔧 ${tc.name}(${JSON.stringify(tc.arguments)}) → ${tc.result.slice(0, 80)}...`);
       }
     }
 
-    console.log(`   ⏱  处理耗时: ${response.processingTime}ms\n`);
+    const processingTime = response?.processingTime ?? 0;
+    console.log(`   ⏱  处理耗时: ${processingTime}ms\n`);
+    return '';
   }
 
-  _prompt() {
+  _prompt(): void {
     if (!this._rl) return;
     this._rl.question('👤 你: ', (input) => {
       if (!input || !input.trim()) {
@@ -155,7 +179,7 @@ class CLIChannel extends BaseChannel {
   }
 
   /** 消息处理完成后重新显示输入提示 */
-  onResponseSent() {
+  onResponseSent(): void {
     this._prompt();
   }
 }
@@ -165,18 +189,26 @@ class CLIChannel extends BaseChannel {
 // 通过 WebSocket 与浏览器端的聊天 UI 通信
 // 消息在 Gateway 中被路由到这里
 // ========================================================================
+interface WebChannelConfig {
+  allowedUsers?: string[];
+}
+
 class WebChannel extends BaseChannel {
-  constructor() {
+  _connections: Map<string, WebSocket> = new Map();
+
+  constructor(config: WebChannelConfig = {}) {
     super('web');
+    if (config.allowedUsers) {
+      config.allowedUsers.forEach((u) => this.allowlist.add(u));
+    }
     // WebSocket 连接池：userId -> ws
-    this._connections = new Map();
   }
 
-  start() {
+  start(): void {
     console.log('[WebChannel] Web 渠道已就绪，等待 WebSocket 连接');
   }
 
-  stop() {
+  stop(): void {
     for (const ws of this._connections.values()) {
       ws.close();
     }
@@ -187,7 +219,7 @@ class WebChannel extends BaseChannel {
    * 注册一个 WebSocket 连接
    * 当浏览器通过 WebSocket 连接到 Gateway 时，Gateway 会调用此方法
    */
-  registerConnection(userId, ws) {
+  registerConnection(userId: string, ws: WebSocket): void {
     this._connections.set(userId, ws);
     console.log(`[WebChannel] 用户 ${userId} 已连接`);
 
@@ -197,7 +229,15 @@ class WebChannel extends BaseChannel {
     });
   }
 
-  parseIncoming(rawMessage) {
+  parseIncoming(rawInput: string | Record<string, unknown>): IncomingMessage {
+    // rawInput 为 WebSocket 原始字符串时 JSON.parse；Gateway 也可能传入已解析对象
+    const rawMessage = (typeof rawInput === 'string' ? JSON.parse(rawInput) : rawInput) as {
+      userId?: string;
+      userName?: string;
+      text: string;
+      peerKind?: 'main' | 'dm' | 'group';
+      idempotencyKey?: string;
+    };
     return {
       id: `msg_${Date.now()}`,
       channelType: 'web',
@@ -212,31 +252,34 @@ class WebChannel extends BaseChannel {
     };
   }
 
-  formatOutgoing(response) {
+  formatOutgoing(textOrResponse: string | AgentResponse, metadata?: Record<string, unknown>): string {
+    const response = typeof textOrResponse === 'object' ? textOrResponse : (metadata as AgentResponse | undefined);
+    const text = typeof textOrResponse === 'string' ? textOrResponse : textOrResponse.text;
     // Web 渠道的消息格式化：生成 JSON 推送给浏览器
-    return {
+    const formatted = {
       type: 'response',
-      id: response.id,
-      text: response.text,
-      toolCalls: response.toolCalls,
-      processingTime: response.processingTime,
-      timestamp: response.timestamp,
+      id: response?.id,
+      text,
+      toolCalls: response?.toolCalls,
+      processingTime: response?.processingTime,
+      timestamp: response?.timestamp,
     };
+    return JSON.stringify(formatted);
   }
 
   /** 向特定用户发送消息 */
-  sendToUser(userId, response) {
+  sendToUser(userId: string, response: AgentResponse): void {
     const ws = this._connections.get(userId);
     if (ws && ws.readyState === 1) {
-      const formatted = this.formatOutgoing(response);
-      ws.send(JSON.stringify(formatted));
+      const formatted = this.formatOutgoing(response.text, { ...response });
+      ws.send(formatted);
     }
   }
 
   /** 广播消息给所有连接的用户 */
-  broadcast(response) {
-    const formatted = this.formatOutgoing(response);
-    const data = JSON.stringify(formatted);
+  broadcast(response: AgentResponse): void {
+    const formatted = this.formatOutgoing(response.text, { ...response });
+    const data = formatted;
     for (const ws of this._connections.values()) {
       if (ws.readyState === 1) {
         ws.send(data);
@@ -245,4 +288,4 @@ class WebChannel extends BaseChannel {
   }
 }
 
-module.exports = { BaseChannel, CLIChannel, WebChannel };
+export { BaseChannel, CLIChannel, WebChannel };
