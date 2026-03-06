@@ -1,0 +1,5 @@
+{"createdAt":1772767518139,"lastActiveAt":1772767549395,"messageCount":4}
+{"role":"user","content":"你好"}
+{"role":"assistant","content":"你好！我收到了你的消息：\"你好\"\n\n我可以帮你做这些事情：\n- 🕐 查询时间（试试\"现在几点\"）\n- 📁 列出文件（试试\"列出文件\"）\n- 📄 读取文件（试试\"读取文件 'package.json'\"）\n- 💻 执行命令（试试\"执行命令 'node -v'\"）\n- 👋 打招呼（试试\"给小明打招呼\"）\n- ❓ 了解架构（试试\"你是谁\"）\n\n当前运行在 Mock 模式，不需要 API Key。"}
+{"role":"user","content":"你是谁"}
+{"role":"assistant","content":"我是 **Mini-OpenClaw** AI 助手，一个简化版的 OpenClaw 实现。\n\nOpenClaw 的核心架构包括：\n- **Gateway（网关）**：WebSocket 控制平面，负责消息路由\n- **Agent（智能体）**：AI 运行时，执行对话和工具调用\n- **Channel（渠道）**：连接各种聊天平台\n- **Tool System（工具系统）**：shell、文件操作等\n- **Session（会话）**：对话状态管理和自动压缩\n- **Memory（记忆）**：长期记忆存储和语义检索\n\n我可以帮你演示这些功能！"}

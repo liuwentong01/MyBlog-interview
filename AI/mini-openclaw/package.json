@@ -1,0 +1,13 @@
+{
+  "name": "mini-openclaw",
+  "version": "1.0.0",
+  "description": "简易 OpenClaw 实现 - 用于学习 AI Agent 架构",
+  "main": "index.js",
+  "scripts": {
+    "start": "OPENCLAW_PORT=3003 node index.js",
+    "start:real": "OPENCLAW_PORT=3003 OPENCLAW_LLM=real OPENAI_API_KEY=your-key-here node index.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
