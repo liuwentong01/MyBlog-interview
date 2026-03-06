@@ -147,9 +147,10 @@ class CLIChannel extends BaseChannel {
         return;
       }
 
-      // 解析消息并发射事件，由 Gateway 接收
-      const message = this.parseIncoming(input);
-      this.emit('message', message);
+      // 发射原始文本，由 Gateway.submitMessage() 统一处理
+      // Gateway 会调用 channel.parseIncoming() 解析 + channel.checkAccess() 检查权限
+      // 这确保 CLI 和 Web 走完全相同的处理流程
+      this.emit('message', input.trim());
     });
   }
 
