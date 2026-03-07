@@ -14,8 +14,8 @@
  * - RealLLMProvider：调用 OpenAI API（需要 API Key）
  */
 
-import https from 'https';
-import type { LLMProvider, LLMRequest, LLMResponse, LLMToolCall } from './types';
+import https from "https";
+import type { LLMProvider, LLMRequest, LLMResponse, LLMToolCall } from "./types";
 
 // ========================================================================
 // MockLLMProvider - 模拟 LLM
@@ -23,7 +23,7 @@ import type { LLMProvider, LLMRequest, LLMResponse, LLMToolCall } from './types'
 // 适合在没有 API Key 的情况下学习和测试完整流程
 // ========================================================================
 class MockLLMProvider implements LLMProvider {
-  name = 'mock';
+  name = "mock";
 
   /**
    * 模拟 LLM 聊天接口
@@ -37,88 +37,84 @@ class MockLLMProvider implements LLMProvider {
   async chat(request: LLMRequest): Promise<LLMResponse> {
     const { messages, tools = [] } = request;
     const lastMsg = messages[messages.length - 1];
-    const toolNames = tools.map(t => t.function.name);
+    const toolNames = tools.map((t) => t.function.name);
 
     // 模拟网络延迟
     await this._delay(300 + Math.random() * 500);
 
     // 如果最后一条是工具执行结果，基于结果生成最终回复
-    if (lastMsg.role === 'tool') {
-      const toolResults = messages
-        .filter(m => m.role === 'tool')
-        .map(m => m.content);
+    if (lastMsg.role === "tool") {
+      const toolResults = messages.filter((m) => m.role === "tool").map((m) => m.content);
       return {
         content: this._formatToolResults(toolResults),
         toolCalls: null,
-        finishReason: 'stop',
+        finishReason: "stop",
       };
     }
 
-    const text = (lastMsg.content || '').toLowerCase();
+    const text = (lastMsg.content || "").toLowerCase();
 
     // ---- 工具调用匹配 ----
 
     // 时间查询
-    if (this._match(text, ['时间', '几点', '日期', 'time', 'date'])
-        && toolNames.includes('get_current_time')) {
-      return this._toolCallResponse('get_current_time', {});
+    if (this._match(text, ["时间", "几点", "日期", "time", "date"]) && toolNames.includes("get_current_time")) {
+      return this._toolCallResponse("get_current_time", {});
     }
 
     // 列出文件
-    if (this._match(text, ['列出文件', '文件列表', '目录', 'ls', 'list'])
-        && toolNames.includes('list_files')) {
-      const pathArg = this._extractQuoted(text) || '.';
-      return this._toolCallResponse('list_files', { path: pathArg });
+    if (this._match(text, ["列出文件", "文件列表", "目录", "ls", "list"]) && toolNames.includes("list_files")) {
+      const pathArg = this._extractQuoted(text) || ".";
+      return this._toolCallResponse("list_files", { path: pathArg });
     }
 
     // 读取文件
-    if (this._match(text, ['读取文件', '查看文件', '打开文件', '读文件', 'read', 'cat'])
-        && toolNames.includes('read_file')) {
-      const pathArg = this._extractQuoted(text) || 'package.json';
-      return this._toolCallResponse('read_file', { path: pathArg });
+    if (
+      this._match(text, ["读取文件", "查看文件", "打开文件", "读文件", "read", "cat"]) &&
+      toolNames.includes("read_file")
+    ) {
+      const pathArg = this._extractQuoted(text) || "package.json";
+      return this._toolCallResponse("read_file", { path: pathArg });
     }
 
     // 执行命令
-    if (this._match(text, ['执行', '运行', '命令', 'run', 'exec', 'shell'])
-        && toolNames.includes('run_shell')) {
+    if (this._match(text, ["执行", "运行", "命令", "run", "exec", "shell"]) && toolNames.includes("run_shell")) {
       const cmd = this._extractQuoted(text) || 'echo "Hello from Mini-OpenClaw!"';
-      return this._toolCallResponse('run_shell', { command: cmd });
+      return this._toolCallResponse("run_shell", { command: cmd });
     }
 
     // 插件工具：打招呼（需要有明确的"给XX打招呼"模式才触发）
-    if (this._match(text, ['打招呼', '问候', 'greet'])
-        && toolNames.includes('greeting')) {
-      const name = this._extractName(text) || '朋友';
-      return this._toolCallResponse('greeting', { name });
+    if (this._match(text, ["打招呼", "问候", "greet"]) && toolNames.includes("greeting")) {
+      const name = this._extractName(text) || "朋友";
+      return this._toolCallResponse("greeting", { name });
     }
 
     // ---- 记忆相关 ----
-    if (this._match(text, ['记住', '记忆', 'remember'])) {
+    if (this._match(text, ["记住", "记忆", "remember"])) {
       return {
-        content: '好的，我会记住这些信息。在 OpenClaw 中，记忆系统会通过语义搜索在后续对话中自动检索相关记忆。',
+        content: "好的，我会记住这些信息。在 OpenClaw 中，记忆系统会通过语义搜索在后续对话中自动检索相关记忆。",
         toolCalls: null,
-        finishReason: 'stop',
+        finishReason: "stop",
       };
     }
 
     // ---- 关于自身 ----
-    if (this._match(text, ['你是谁', '介绍', '什么是', 'openclaw', 'who are you'])) {
+    if (this._match(text, ["你是谁", "介绍", "什么是", "openclaw", "who are you"])) {
       return {
         content: [
-          '我是 **Mini-OpenClaw** AI 助手，一个简化版的 OpenClaw 实现。',
-          '',
-          'OpenClaw 的核心架构包括：',
-          '- **Gateway（网关）**：WebSocket 控制平面，负责消息路由',
-          '- **Agent（智能体）**：AI 运行时，执行对话和工具调用',
-          '- **Channel（渠道）**：连接各种聊天平台',
-          '- **Tool System（工具系统）**：shell、文件操作等',
-          '- **Session（会话）**：对话状态管理和自动压缩',
-          '- **Memory（记忆）**：长期记忆存储和语义检索',
-          '',
-          '我可以帮你演示这些功能！',
-        ].join('\n'),
+          "我是 **Mini-OpenClaw** AI 助手，一个简化版的 OpenClaw 实现。",
+          "",
+          "OpenClaw 的核心架构包括：",
+          "- **Gateway（网关）**：WebSocket 控制平面，负责消息路由",
+          "- **Agent（智能体）**：AI 运行时，执行对话和工具调用",
+          "- **Channel（渠道）**：连接各种聊天平台",
+          "- **Tool System（工具系统）**：shell、文件操作等",
+          "- **Session（会话）**：对话状态管理和自动压缩",
+          "- **Memory（记忆）**：长期记忆存储和语义检索",
+          "",
+          "我可以帮你演示这些功能！",
+        ].join("\n"),
         toolCalls: null,
-        finishReason: 'stop',
+        finishReason: "stop",
       };
     }
 
@@ -126,19 +122,19 @@ class MockLLMProvider implements LLMProvider {
     return {
       content: [
         `你好！我收到了你的消息："${lastMsg.content}"`,
-        '',
-        '我可以帮你做这些事情：',
+        "",
+        "我可以帮你做这些事情：",
         '- 🕐 查询时间（试试"现在几点"）',
         '- 📁 列出文件（试试"列出文件"）',
-        '- 📄 读取文件（试试"读取文件 \'package.json\'"）',
-        '- 💻 执行命令（试试"执行命令 \'node -v\'"）',
+        "- 📄 读取文件（试试\"读取文件 'package.json'\"）",
+        "- 💻 执行命令（试试\"执行命令 'node -v'\"）",
         '- 👋 打招呼（试试"给小明打招呼"）',
         '- ❓ 了解架构（试试"你是谁"）',
-        '',
-        '当前运行在 Mock 模式，不需要 API Key。',
-      ].join('\n'),
+        "",
+        "当前运行在 Mock 模式，不需要 API Key。",
+      ].join("\n"),
       toolCalls: null,
-      finishReason: 'stop',
+      finishReason: "stop",
     };
   }
 
@@ -147,17 +143,19 @@ class MockLLMProvider implements LLMProvider {
   _toolCallResponse(name: string, args: Record<string, unknown>): LLMResponse {
     return {
       content: null,
-      toolCalls: [{
-        id: `call_${Date.now()}`,
-        name,
-        arguments: args,
-      }],
-      finishReason: 'tool_calls',
+      toolCalls: [
+        {
+          id: `call_${Date.now()}`,
+          name,
+          arguments: args,
+        },
+      ],
+      finishReason: "tool_calls",
     };
   }
 
   _match(text: string, keywords: string[]): boolean {
-    return keywords.some(kw => text.includes(kw));
+    return keywords.some((kw) => text.includes(kw));
   }
 
   _extractQuoted(text: string): string | null {
@@ -186,11 +184,11 @@ class MockLLMProvider implements LLMProvider {
     if (results.length === 1) {
       return `好的，这是结果：\n\n${results[0]}`;
     }
-    return `以下是执行结果：\n\n${results.map((r, i) => `**结果 ${i + 1}:**\n${r}`).join('\n\n')}`;
+    return `以下是执行结果：\n\n${results.map((r, i) => `**结果 ${i + 1}:**\n${r}`).join("\n\n")}`;
   }
 
   _delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
 
@@ -199,18 +197,18 @@ class MockLLMProvider implements LLMProvider {
 // 调用 OpenAI Chat Completions API（也兼容其他 OpenAI 兼容的 API）
 // ========================================================================
 class RealLLMProvider implements LLMProvider {
-  name = 'real';
+  name = "real";
   private apiKey: string;
   private baseUrl: string;
   private model: string;
 
   constructor(config: { apiKey?: string; baseUrl?: string; model?: string } = {}) {
-    this.apiKey = config.apiKey || process.env.OPENAI_API_KEY || '';
-    this.baseUrl = config.baseUrl || 'https://api.openai.com';
-    this.model = config.model || 'gpt-4o-mini';
+    this.apiKey = config.apiKey || process.env.OPENAI_API_KEY || "";
+    this.baseUrl = config.baseUrl || "https://api.openai.com";
+    this.model = config.model || "gpt-4o-mini";
 
     if (!this.apiKey) {
-      throw new Error('RealLLMProvider 需要 OPENAI_API_KEY 环境变量或 config.apiKey');
+      throw new Error("RealLLMProvider 需要 OPENAI_API_KEY 环境变量或 config.apiKey");
     }
   }
 
@@ -219,18 +217,18 @@ class RealLLMProvider implements LLMProvider {
 
     // 构建 OpenAI 格式的消息
     const apiMessages = [
-      { role: 'system', content: systemPrompt },
-      ...messages.map(msg => {
-        if (msg.role === 'tool') {
-          return { role: 'tool', content: msg.content, tool_call_id: msg.toolCallId };
+      { role: "system", content: systemPrompt },
+      ...messages.map((msg) => {
+        if (msg.role === "tool") {
+          return { role: "tool", content: msg.content, tool_call_id: msg.toolCallId };
         }
         if (msg.toolCalls) {
           return {
-            role: 'assistant',
+            role: "assistant",
             content: msg.content || null,
-            tool_calls: msg.toolCalls.map(tc => ({
+            tool_calls: msg.toolCalls.map((tc) => ({
               id: tc.id,
-              type: 'function',
+              type: "function",
               function: { name: tc.name, arguments: JSON.stringify(tc.arguments) },
             })),
           };
@@ -248,25 +246,27 @@ class RealLLMProvider implements LLMProvider {
       body.tools = tools;
     }
 
-    const data = await this._post('/v1/chat/completions', body);
+    const data = await this._post("/v1/chat/completions", body);
     const choice = data.choices[0];
 
-    if (choice.finish_reason === 'tool_calls' && choice.message.tool_calls) {
+    if (choice.finish_reason === "tool_calls" && choice.message.tool_calls) {
       return {
         content: choice.message.content,
-        toolCalls: choice.message.tool_calls.map((tc: { id: string; function: { name: string; arguments: string } }) => ({
-          id: tc.id,
-          name: tc.function.name,
-          arguments: JSON.parse(tc.function.arguments),
-        })),
-        finishReason: 'tool_calls',
+        toolCalls: choice.message.tool_calls.map(
+          (tc: { id: string; function: { name: string; arguments: string } }) => ({
+            id: tc.id,
+            name: tc.function.name,
+            arguments: JSON.parse(tc.function.arguments),
+          }),
+        ),
+        finishReason: "tool_calls",
       };
     }
 
     return {
       content: choice.message.content,
       toolCalls: null,
-      finishReason: 'stop',
+      finishReason: "stop",
     };
   }
 
@@ -278,18 +278,20 @@ class RealLLMProvider implements LLMProvider {
         hostname: url.hostname,
         port: url.port || 443,
         path: url.pathname,
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Length': Buffer.byteLength(postData),
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Length": Buffer.byteLength(postData),
         },
       };
 
-      const req = https.request(options, res => {
-        let data = '';
-        res.on('data', chunk => { data += chunk; });
-        res.on('end', () => {
+      const req = https.request(options, (res) => {
+        let data = "";
+        res.on("data", (chunk) => {
+          data += chunk;
+        });
+        res.on("end", () => {
           try {
             const parsed = JSON.parse(data);
             if (res.statusCode && res.statusCode >= 400) {
@@ -303,7 +305,7 @@ class RealLLMProvider implements LLMProvider {
         });
       });
 
-      req.on('error', reject);
+      req.on("error", reject);
       req.write(postData);
       req.end();
     });
@@ -313,15 +315,17 @@ class RealLLMProvider implements LLMProvider {
 // ========================================================================
 // 工厂函数：根据配置创建对应的 LLM Provider
 // ========================================================================
-function createLLMProvider(config: { type?: string; apiKey?: string; baseUrl?: string; model?: string } = {}): LLMProvider {
-  const type = config.type || process.env.OPENCLAW_LLM || 'mock';
+function createLLMProvider(
+  config: { type?: string; apiKey?: string; baseUrl?: string; model?: string } = {},
+): LLMProvider {
+  const type = config.type || process.env.OPENCLAW_LLM || "mock";
 
-  if (type === 'real') {
-    console.log('[LLM] 使用真实 LLM API (OpenAI 兼容)');
+  if (type === "real") {
+    console.log("[LLM] 使用真实 LLM API (OpenAI 兼容)");
     return new RealLLMProvider(config);
   }
 
-  console.log('[LLM] 使用 Mock LLM（无需 API Key，适合学习和测试）');
+  console.log("[LLM] 使用 Mock LLM（无需 API Key，适合学习和测试）");
   return new MockLLMProvider();
 }
 

@@ -10,10 +10,10 @@
  * 这里我们实现内置的 shell、file、time 三种工具作为演示。
  */
 
-import { execSync } from 'child_process';
-import fs from 'fs';
-import path from 'path';
-import type { ToolDefinition, LLMToolDefinition } from './types';
+import { execSync } from "child_process";
+import fs from "fs";
+import path from "path";
+import type { ToolDefinition, LLMToolDefinition } from "./types";
 
 class ToolSystem {
   private _tools: Map<string, ToolDefinition>;
@@ -54,12 +54,12 @@ class ToolSystem {
    * OpenClaw 也采用类似格式让 LLM 知道有哪些工具可用
    */
   getToolDefinitions(): LLMToolDefinition[] {
-    return Array.from(this._tools.values()).map(tool => ({
-      type: 'function' as const,
+    return Array.from(this._tools.values()).map((tool) => ({
+      type: "function" as const,
       function: {
         name: tool.name,
         description: tool.description,
-        parameters: tool.parameters || { type: 'object', properties: {} },
+        parameters: tool.parameters || { type: "object", properties: {} },
       },
     }));
   }
@@ -76,7 +76,7 @@ class ToolSystem {
   async execute(name: string, args: Record<string, unknown>): Promise<string> {
     const tool = this._tools.get(name);
     if (!tool) {
-      return `错误：未找到工具 "${name}"，可用工具：${this.getToolNames().join(', ')}`;
+      return `错误：未找到工具 "${name}"，可用工具：${this.getToolNames().join(", ")}`;
     }
     try {
       const result = await tool.execute(args);
@@ -94,62 +94,62 @@ class ToolSystem {
   _registerBuiltinTools(): void {
     // ========== 工具 1: 获取当前时间 ==========
     this.register({
-      name: 'get_current_time',
-      description: '获取当前日期和时间',
+      name: "get_current_time",
+      description: "获取当前日期和时间",
       parameters: {
-        type: 'object',
+        type: "object",
         properties: {},
       },
       execute: async () => {
         const now = new Date();
-        return `当前时间：${now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}`;
+        return `当前时间：${now.toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })}`;
       },
     });
 
     // ========== 工具 2: 列出目录文件 ==========
     this.register({
-      name: 'list_files',
-      description: '列出指定目录下的文件和文件夹',
+      name: "list_files",
+      description: "列出指定目录下的文件和文件夹",
       parameters: {
-        type: 'object',
+        type: "object",
         properties: {
-          path: { type: 'string', description: '目录路径，默认为当前目录' },
+          path: { type: "string", description: "目录路径，默认为当前目录" },
         },
       },
       execute: async (args: Record<string, unknown>) => {
-        const targetPath = (args.path as string) || '.';
+        const targetPath = (args.path as string) || ".";
         const resolved = path.resolve(targetPath);
         const entries = fs.readdirSync(resolved, { withFileTypes: true });
-        const lines = entries.map(e => {
-          const icon = e.isDirectory() ? '📁' : '📄';
+        const lines = entries.map((e) => {
+          const icon = e.isDirectory() ? "📁" : "📄";
           return `${icon} ${e.name}`;
         });
-        return `目录 ${resolved} 的内容：\n${lines.join('\n')}`;
+        return `目录 ${resolved} 的内容：\n${lines.join("\n")}`;
       },
     });
 
     // ========== 工具 3: 读取文件 ==========
     this.register({
-      name: 'read_file',
-      description: '读取指定文件的内容',
+      name: "read_file",
+      description: "读取指定文件的内容",
       parameters: {
-        type: 'object',
+        type: "object",
         properties: {
-          path: { type: 'string', description: '文件路径' },
-          maxLines: { type: 'number', description: '最多读取行数，默认 50' },
+          path: { type: "string", description: "文件路径" },
+          maxLines: { type: "number", description: "最多读取行数，默认 50" },
         },
-        required: ['path'],
+        required: ["path"],
       },
       execute: async (args: Record<string, unknown>) => {
         const filePath = path.resolve(args.path as string);
         if (!fs.existsSync(filePath)) {
           return `文件不存在：${filePath}`;
         }
-        const content = fs.readFileSync(filePath, 'utf-8');
-        const lines = content.split('\n');
+        const content = fs.readFileSync(filePath, "utf-8");
+        const lines = content.split("\n");
         const maxLines = (args.maxLines as number) || 50;
         const truncated = lines.length > maxLines;
-        const output = lines.slice(0, maxLines).join('\n');
+        const output = lines.slice(0, maxLines).join("\n");
         return truncated
           ? `文件 ${filePath} 的内容（前 ${maxLines} 行）：\n${output}\n... (共 ${lines.length} 行)`
           : `文件 ${filePath} 的内容：\n${output}`;
@@ -159,29 +159,29 @@ class ToolSystem {
     // ========== 工具 4: 执行 Shell 命令 ==========
     // OpenClaw 中 Shell 工具可在 Docker 沙箱中运行，这里简化为直接执行
     this.register({
-      name: 'run_shell',
-      description: '执行一条 Shell 命令并返回输出',
+      name: "run_shell",
+      description: "执行一条 Shell 命令并返回输出",
       parameters: {
-        type: 'object',
+        type: "object",
         properties: {
-          command: { type: 'string', description: '要执行的命令' },
+          command: { type: "string", description: "要执行的命令" },
         },
-        required: ['command'],
+        required: ["command"],
       },
       execute: async (args: Record<string, unknown>) => {
         const cmd = args.command as string;
         // 安全限制：禁止危险命令
-        const dangerous = ['rm -rf', 'mkfs', 'dd if=', ':(){', 'fork bomb'];
-        if (dangerous.some(d => cmd.includes(d))) {
-          return '安全限制：禁止执行危险命令';
+        const dangerous = ["rm -rf", "mkfs", "dd if=", ":(){", "fork bomb"];
+        if (dangerous.some((d) => cmd.includes(d))) {
+          return "安全限制：禁止执行危险命令";
         }
         try {
           const output = execSync(cmd, {
-            encoding: 'utf-8',
+            encoding: "utf-8",
             timeout: 10000, // 10 秒超时
             maxBuffer: 1024 * 1024,
           });
-          return `命令 \`${cmd}\` 的输出：\n${output.trim() || '(无输出)'}`;
+          return `命令 \`${cmd}\` 的输出：\n${output.trim() || "(无输出)"}`;
         } catch (err) {
           return `命令执行失败：${(err as Error).message}`;
         }

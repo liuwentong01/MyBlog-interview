@@ -32,7 +32,7 @@
  * 这种设计使得 Gateway 和 Agent 松耦合：Gateway 只负责路由，不关心 AI 怎么思考。
  */
 
-import { EventEmitter } from 'events';
+import { EventEmitter } from "events";
 import type {
   IncomingMessage,
   AgentResponse,
@@ -40,12 +40,12 @@ import type {
   LLMToolCall,
   ToolCallRecord,
   LLMToolDefinition,
-} from './types';
-import ToolSystem from './tool-system';
-import SessionManager from './session';
-import MemorySystem from './memory';
-import PromptBuilder from './prompt-builder';
-import type { LLMProvider } from './types';
+} from "./types";
+import ToolSystem from "./tool-system";
+import SessionManager from "./session";
+import MemorySystem from "./memory";
+import PromptBuilder from "./prompt-builder";
+import type { LLMProvider } from "./types";
 
 interface AgentDeps {
   toolSystem: ToolSystem;
@@ -85,14 +85,7 @@ class Agent extends EventEmitter {
    * @param {ToolSystem} deps.toolSystem - 工具系统
    * @param {LLMProvider} deps.llmProvider - LLM 提供商
    */
-  constructor({
-    toolSystem,
-    sessionManager,
-    memory,
-    promptBuilder,
-    llmProvider,
-    maxToolRounds = 5,
-  }: AgentDeps) {
+  constructor({ toolSystem, sessionManager, memory, promptBuilder, llmProvider, maxToolRounds = 5 }: AgentDeps) {
     super();
     this.sessionManager = sessionManager;
     this.memory = memory;
@@ -125,7 +118,7 @@ class Agent extends EventEmitter {
 
     try {
       // 发射"开始处理"事件 → Gateway 可据此向前端发送"正在输入"提示
-      this.emit('agent:processing', { messageId });
+      this.emit("agent:processing", { messageId });
 
       // ======== 步骤 1: 会话解析 (Session Resolution) ========
       // 根据消息的来源（渠道类型、发送者、群组等）确定会话 ID
@@ -162,13 +155,13 @@ class Agent extends EventEmitter {
       };
 
       // 发射"最终回复"事件 → Gateway 监听后路由到对应的渠道连接
-      this.emit('agent:response', { messageId, response });
+      this.emit("agent:response", { messageId, response });
       console.log(`[Agent] 消息处理完成，总耗时 ${response.processingTime}ms`);
     } catch (err) {
-      console.error('[Agent] 处理消息出错:', err);
+      console.error("[Agent] 处理消息出错:", err);
 
       // 发射"错误"事件 → Gateway 监听后向客户端返回错误信息
-      this.emit('agent:error', { messageId, error: err });
+      this.emit("agent:error", { messageId, error: err });
 
       throw err;
     }
@@ -186,10 +179,7 @@ class Agent extends EventEmitter {
    * 这些信息一起构成发给 LLM 的完整请求。
    * OpenClaw 会智能筛选，只注入当前这轮需要的内容，避免提示词过长。
    */
-  private async _assembleContext(
-    sessionId: string,
-    message: IncomingMessage
-  ): Promise<AssembledContext> {
+  private async _assembleContext(sessionId: string, message: IncomingMessage): Promise<AssembledContext> {
     // 2a. 搜索相关记忆
     // OpenClaw 使用 embedding 向量 + 余弦相似度，简化版用关键词匹配
     const memories = this.memory.search(message.text, 3);
@@ -232,17 +222,11 @@ class Agent extends EventEmitter {
    * @param {object} context - assembleContext 的返回值
    * @param {string} messageId - 消息 ID（用于事件关联）
    */
-  private async _executionLoop(
-    context: AssembledContext,
-    messageId: string
-  ): Promise<ExecutionResult> {
+  private async _executionLoop(context: AssembledContext, messageId: string): Promise<ExecutionResult> {
     const { systemPrompt, history, tools, currentMessage } = context;
 
     // 构建发给 LLM 的消息列表（会话历史 + 当前用户消息）
-    const messages: ChatMessage[] = [
-      ...history,
-      { role: 'user', content: currentMessage.text },
-    ];
+    const messages: ChatMessage[] = [...history, { role: "user", content: currentMessage.text }];
 
     // 记录所有工具调用（用于调试和展示）
     const toolCallLog: ToolCallRecord[] = [];
@@ -260,9 +244,9 @@ class Agent extends EventEmitter {
       });
 
       // 情况 1：LLM 直接给出最终回复（无工具调用）
-      if (llmResponse.finishReason === 'stop' || !llmResponse.toolCalls) {
+      if (llmResponse.finishReason === "stop" || !llmResponse.toolCalls) {
         return {
-          finalContent: llmResponse.content || '(无回复内容)',
+          finalContent: llmResponse.content || "(无回复内容)",
           toolCallLog,
         };
       }
@@ -270,19 +254,17 @@ class Agent extends EventEmitter {
       // 情况 2：LLM 请求调用工具
       // 先将 assistant 的工具调用请求加入消息列表（保持对话完整性）
       messages.push({
-        role: 'assistant',
+        role: "assistant",
         content: llmResponse.content || null,
         toolCalls: llmResponse.toolCalls,
       });
 
       // 依次执行每个工具调用
       for (const toolCall of llmResponse.toolCalls) {
-        console.log(
-          `[Agent]   调用工具: ${toolCall.name}(${JSON.stringify(toolCall.arguments)})`
-        );
+        console.log(`[Agent]   调用工具: ${toolCall.name}(${JSON.stringify(toolCall.arguments)})`);
 
         // 发射工具调用事件 → Gateway 实时通知前端
-        this.emit('agent:tool_call', {
+        this.emit("agent:tool_call", {
           messageId,
           toolName: toolCall.name,
           arguments: toolCall.arguments,
@@ -290,10 +272,7 @@ class Agent extends EventEmitter {
         });
 
         // 执行工具
-        const result = await this.toolSystem.execute(
-          toolCall.name,
-          toolCall.arguments
-        );
+        const result = await this.toolSystem.execute(toolCall.name, toolCall.arguments);
 
         // 记录工具调用详情
         toolCallLog.push({
@@ -306,7 +285,7 @@ class Agent extends EventEmitter {
         // 将工具执行结果追加到消息列表
         // toolCallId 关联请求和结果，LLM 据此理解哪个工具返回了什么
         messages.push({
-          role: 'tool',
+          role: "tool",
           content: result,
           toolCallId: toolCall.id,
         });
@@ -319,7 +298,7 @@ class Agent extends EventEmitter {
 
     // 超过最大轮数，安全退出
     return {
-      finalContent: '抱歉，工具调用次数超过限制，已停止执行。',
+      finalContent: "抱歉，工具调用次数超过限制，已停止执行。",
       toolCallLog,
     };
   }
@@ -333,31 +312,25 @@ class Agent extends EventEmitter {
    *
    * 所有数据都存在本地磁盘，不上传到云端（OpenClaw 的"own your data"理念）
    */
-  private async _saveState(
-    sessionId: string,
-    message: IncomingMessage,
-    result: ExecutionResult
-  ): Promise<void> {
+  private async _saveState(sessionId: string, message: IncomingMessage, result: ExecutionResult): Promise<void> {
     // 保存用户消息
     this.sessionManager.appendMessage(sessionId, {
-      role: 'user',
+      role: "user",
       content: message.text,
     });
 
     // 如果有工具调用，保存工具调用记录
     if (result.toolCallLog && result.toolCallLog.length > 0) {
-      const toolSummary = result.toolCallLog
-        .map((tc) => `[工具:${tc.name}] ${tc.result.slice(0, 100)}`)
-        .join('\n');
+      const toolSummary = result.toolCallLog.map((tc) => `[工具:${tc.name}] ${tc.result.slice(0, 100)}`).join("\n");
       this.sessionManager.appendMessage(sessionId, {
-        role: 'assistant',
+        role: "assistant",
         content: `[工具调用]\n${toolSummary}`,
       });
     }
 
     // 保存 AI 回复
     this.sessionManager.appendMessage(sessionId, {
-      role: 'assistant',
+      role: "assistant",
       content: result.finalContent,
     });
 
@@ -366,7 +339,7 @@ class Agent extends EventEmitter {
     this.memory.save({
       content: message.text,
       sessionId,
-      tags: ['conversation'],
+      tags: ["conversation"],
     });
   }
 }

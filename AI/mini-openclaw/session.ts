@@ -27,12 +27,12 @@
  * 后续对话可以通过语义搜索重新找回。
  */
 
-import fs from 'fs';
-import path from 'path';
-import type { Session, SessionMetadata, ChatMessage } from './types';
-import MemorySystem from './memory';
+import fs from "fs";
+import path from "path";
+import type { Session, SessionMetadata, ChatMessage } from "./types";
+import MemorySystem from "./memory";
 
-const SESSIONS_DIR = path.join(__dirname, 'data', 'sessions');
+const SESSIONS_DIR = path.join(__dirname, "data", "sessions");
 
 class SessionManager {
   maxHistoryLength: number;
@@ -46,11 +46,13 @@ class SessionManager {
    * @param {number} config.keepRecentCount - 压缩后保留的最近消息条数
    * @param {MemorySystem} config.memory - 记忆系统引用（用于压缩前的 Memory Flush）
    */
-  constructor(config: {
-    maxHistoryLength?: number;
-    keepRecentCount?: number;
-    memory?: MemorySystem;
-  } = {}) {
+  constructor(
+    config: {
+      maxHistoryLength?: number;
+      keepRecentCount?: number;
+      memory?: MemorySystem;
+    } = {},
+  ) {
     this.maxHistoryLength = config.maxHistoryLength ?? 30;
     this.keepRecentCount = config.keepRecentCount ?? 10;
 
@@ -94,11 +96,11 @@ class SessionManager {
     const { channelType, senderId, peerKind, groupId } = message;
 
     switch (peerKind) {
-      case 'main':
-        return 'agent:default:main';
-      case 'group':
+      case "main":
+        return "agent:default:main";
+      case "group":
         return `agent:default:${channelType}:group:${groupId}`;
-      case 'dm':
+      case "dm":
       default:
         return `agent:default:${channelType}:dm:${senderId}`;
     }
@@ -185,10 +187,7 @@ class SessionManager {
     const summary = this._generateSummary(oldMessages);
 
     // 用摘要替换旧消息
-    session.history = [
-      { role: 'system', content: `[会话历史摘要] ${summary}` },
-      ...session.history.slice(cutIndex),
-    ];
+    session.history = [{ role: "system", content: `[会话历史摘要] ${summary}` }, ...session.history.slice(cutIndex)];
 
     this._saveToDisk(sessionId, session);
     console.log(`[Session] 会话 ${sessionId} 已压缩，${oldMessages.length} 条旧消息被摘要`);
@@ -197,11 +196,11 @@ class SessionManager {
   /** 生成历史摘要（简化版用关键词提取，实际应调用 LLM） */
   private _generateSummary(messages: ChatMessage[]): string {
     const userMessages = messages
-      .filter(m => m.role === 'user')
-      .map(m => m.content)
+      .filter((m) => m.role === "user")
+      .map((m) => m.content)
       .slice(-5);
-    const topics = userMessages.join('；');
-    return `之前的对话涉及：${topics || '一般闲聊'}`;
+    const topics = userMessages.join("；");
+    return `之前的对话涉及：${topics || "一般闲聊"}`;
   }
 
   // ========== 持久化：.jsonl 追加式日志格式 ==========
@@ -209,7 +208,7 @@ class SessionManager {
   // 第一行是 metadata，后续行是历史消息记录
 
   private _getFilePath(sessionId: string): string {
-    const safeName = sessionId.replace(/[/:]/g, '_');
+    const safeName = sessionId.replace(/[/:]/g, "_");
     return path.join(SESSIONS_DIR, `${safeName}.jsonl`);
   }
 
@@ -225,7 +224,7 @@ class SessionManager {
     }
 
     try {
-      const content = fs.readFileSync(filePath, 'utf-8').trim();
+      const content = fs.readFileSync(filePath, "utf-8").trim();
       if (!content) {
         return {
           id: sessionId,
@@ -233,9 +232,9 @@ class SessionManager {
           metadata: { createdAt: Date.now(), lastActiveAt: Date.now(), messageCount: 0 },
         };
       }
-      const lines = content.split('\n').filter(Boolean);
+      const lines = content.split("\n").filter(Boolean);
       const metadata = JSON.parse(lines[0]) as SessionMetadata;
-      const history = lines.slice(1).map(line => JSON.parse(line) as ChatMessage);
+      const history = lines.slice(1).map((line) => JSON.parse(line) as ChatMessage);
       return { id: sessionId, history, metadata };
     } catch (err) {
       console.error(`[Session] 加载会话失败 ${sessionId}:`, (err as Error).message);
@@ -249,19 +248,16 @@ class SessionManager {
 
   private _saveToDisk(sessionId: string, session: Session): void {
     const filePath = this._getFilePath(sessionId);
-    const lines = [
-      JSON.stringify(session.metadata),
-      ...session.history.map(msg => JSON.stringify(msg)),
-    ];
-    fs.writeFileSync(filePath, lines.join('\n') + '\n', 'utf-8');
+    const lines = [JSON.stringify(session.metadata), ...session.history.map((msg) => JSON.stringify(msg))];
+    fs.writeFileSync(filePath, lines.join("\n") + "\n", "utf-8");
   }
 
   private _listDiskSessions(): string[] {
     if (!fs.existsSync(SESSIONS_DIR)) return [];
     return fs
       .readdirSync(SESSIONS_DIR)
-      .filter(f => f.endsWith('.jsonl'))
-      .map(f => f.replace('.jsonl', '').replace(/_/g, ':'));
+      .filter((f) => f.endsWith(".jsonl"))
+      .map((f) => f.replace(".jsonl", "").replace(/_/g, ":"));
   }
 
   private _ensureDir(): void {

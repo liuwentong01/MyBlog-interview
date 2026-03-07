@@ -46,13 +46,13 @@
  *   事件: { type: 'event', event: string, payload: object }
  */
 
-import http from 'http';
-import fs from 'fs';
-import path from 'path';
-import { WebSocketServer, WebSocket } from 'ws';
-import Agent from './agent';
-import { BaseChannel, WebChannel } from './channel-adapter';
-import type { IncomingMessage, AgentResponse, SubmitCallbacks } from './types';
+import http from "http";
+import fs from "fs";
+import path from "path";
+import { WebSocketServer, WebSocket } from "ws";
+import Agent from "./agent";
+import { BaseChannel, WebChannel } from "./channel-adapter";
+import type { IncomingMessage, AgentResponse, SubmitCallbacks } from "./types";
 
 /** 待处理消息条目 */
 interface PendingMessage {
@@ -90,7 +90,7 @@ class Gateway {
    */
   constructor(config: { agent: Agent; port?: number; host?: string }) {
     this.port = config.port ?? 18789;
-    this.host = config.host ?? '127.0.0.1';
+    this.host = config.host ?? "127.0.0.1";
     this.agent = config.agent;
 
     /**
@@ -149,11 +149,7 @@ class Gateway {
    * @param {function} callbacks.onResponse - 最终回复回调 (response) => void
    * @param {function} callbacks.onError - 错误回调 (error) => void
    */
-  submitMessage(
-    channelName: string,
-    rawInput: string | Record<string, unknown>,
-    callbacks: SubmitCallbacks
-  ): void {
+  submitMessage(channelName: string, rawInput: string | Record<string, unknown>, callbacks: SubmitCallbacks): void {
     const channel = this._channels.get(channelName);
     if (!channel) {
       callbacks.onError(new Error(`未注册的渠道: ${channelName}`));
@@ -198,7 +194,7 @@ class Gateway {
     // 异步分发给 Agent（fire-and-forget 风格）
     // 结果通过 Agent 事件回来，而非 await 返回值
     // 这就是事件驱动和同步调用的核心区别
-    this.agent.processMessage(message).catch(err => {
+    this.agent.processMessage(message).catch((err) => {
       // processMessage 内部已经 emit('agent:error')
       // 这里的 catch 是兜底，防止未处理的 Promise rejection
       console.error(`[Gateway] Agent 处理异常:`, (err as Error).message);
@@ -218,16 +214,16 @@ class Gateway {
    */
   private _subscribeAgentEvents(): void {
     // 开始处理事件 → 向客户端发送"正在输入"提示
-    this.agent.on('agent:processing', ({ messageId }: { messageId: string }) => {
+    this.agent.on("agent:processing", ({ messageId }: { messageId: string }) => {
       const pending = this._pendingMessages.get(messageId);
       if (pending?.callbacks.onEvent) {
-        pending.callbacks.onEvent('processing', { messageId });
+        pending.callbacks.onEvent("processing", { messageId });
       }
     });
 
     // 工具调用事件 → 实时推送工具调用信息（可用于展示进度）
     this.agent.on(
-      'agent:tool_call',
+      "agent:tool_call",
       ({
         messageId,
         toolName,
@@ -241,13 +237,13 @@ class Gateway {
       }) => {
         const pending = this._pendingMessages.get(messageId);
         if (pending?.callbacks.onEvent) {
-          pending.callbacks.onEvent('tool_call', { toolName, arguments: args, round });
+          pending.callbacks.onEvent("tool_call", { toolName, arguments: args, round });
         }
-      }
+      },
     );
 
     // 最终回复事件 → 路由到对应的渠道连接
-    this.agent.on('agent:response', ({ messageId, response }: { messageId: string; response: AgentResponse }) => {
+    this.agent.on("agent:response", ({ messageId, response }: { messageId: string; response: AgentResponse }) => {
       const pending = this._pendingMessages.get(messageId);
       if (!pending) return;
 
@@ -265,7 +261,7 @@ class Gateway {
     });
 
     // 错误事件 → 将错误信息发送给客户端
-    this.agent.on('agent:error', ({ messageId, error }: { messageId: string; error: Error }) => {
+    this.agent.on("agent:error", ({ messageId, error }: { messageId: string; error: Error }) => {
       const pending = this._pendingMessages.get(messageId);
       if (!pending) return;
 
@@ -282,9 +278,7 @@ class Gateway {
     this._httpServer = http.createServer((req, res) => this._handleHTTP(req, res));
 
     this._wss = new WebSocketServer({ server: this._httpServer });
-    this._wss.on('connection', (ws: WebSocket, req: http.IncomingMessage) =>
-      this._handleConnection(ws, req)
-    );
+    this._wss.on("connection", (ws: WebSocket, req: http.IncomingMessage) => this._handleConnection(ws, req));
 
     this._httpServer.listen(this.port, this.host, () => {
       console.log(`\n🦞 Mini-OpenClaw Gateway 已启动`);
@@ -300,7 +294,7 @@ class Gateway {
     if (this._cleanupInterval) clearInterval(this._cleanupInterval);
     if (this._wss) this._wss.close();
     if (this._httpServer) this._httpServer.close();
-    console.log('[Gateway] 已停止');
+    console.log("[Gateway] 已停止");
   }
 
   // ======================================================================
@@ -308,30 +302,30 @@ class Gateway {
   // ======================================================================
 
   private _handleHTTP(req: http.IncomingMessage, res: http.ServerResponse): void {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-    if (req.method === 'OPTIONS') {
+    if (req.method === "OPTIONS") {
       res.writeHead(204);
       res.end();
       return;
     }
 
-    if (req.url === '/' || req.url === '/index.html') {
+    if (req.url === "/" || req.url === "/index.html") {
       this._serveWebUI(res);
-    } else if (req.url === '/health') {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
+    } else if (req.url === "/health") {
+      res.writeHead(200, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({
-          status: 'ok',
+          status: "ok",
           uptime: process.uptime(),
           connections: this._wss ? this._wss.clients.size : 0,
           channels: Array.from(this._channels.keys()),
-        })
+        }),
       );
-    } else if (req.url === '/api/status') {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
+    } else if (req.url === "/api/status") {
+      res.writeHead(200, { "Content-Type": "application/json" });
       const agent = this.agent as unknown as {
         llmProvider: { name: string };
         toolSystem: { getToolNames: () => string[] };
@@ -343,23 +337,23 @@ class Gateway {
           tools: agent.toolSystem.getToolNames(),
           sessions: agent.sessionManager.listSessions(),
           channels: Array.from(this._channels.keys()),
-        })
+        }),
       );
     } else {
       res.writeHead(404);
-      res.end('Not Found');
+      res.end("Not Found");
     }
   }
 
   private _serveWebUI(res: http.ServerResponse): void {
-    const uiPath = path.join(__dirname, 'web-ui.html');
+    const uiPath = path.join(__dirname, "web-ui.html");
     try {
-      const html = fs.readFileSync(uiPath, 'utf-8');
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      const html = fs.readFileSync(uiPath, "utf-8");
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
       res.end(html);
     } catch {
       res.writeHead(500);
-      res.end('Web UI 加载失败');
+      res.end("Web UI 加载失败");
     }
   }
 
@@ -382,33 +376,32 @@ class Gateway {
     console.log(`[Gateway] 新 WebSocket 连接: ${connectionId}`);
 
     // 注册到 Web 渠道的连接池（用于后续消息发送）
-    const webChannel = this._channels.get('web');
+    const webChannel = this._channels.get("web");
     if (webChannel && webChannel instanceof WebChannel) {
       webChannel.registerConnection(userId, ws);
     }
 
     // 发送连接成功事件
     this._sendWs(ws, {
-      type: 'event',
-      event: 'connected',
+      type: "event",
+      event: "connected",
       payload: { connectionId, userId },
     });
 
     // 阶段 3 & 4: Dispatch + Broadcast — 处理收到的消息
-    ws.on('message', (data: Buffer | ArrayBuffer | Buffer[]) => {
+    ws.on("message", (data: Buffer | ArrayBuffer | Buffer[]) => {
       try {
-        const str =
-          Buffer.isBuffer(data)
-            ? data.toString()
-            : Array.isArray(data)
-              ? Buffer.concat(data).toString()
-              : Buffer.from(data as ArrayBuffer).toString();
+        const str = Buffer.isBuffer(data)
+          ? data.toString()
+          : Array.isArray(data)
+            ? Buffer.concat(data).toString()
+            : Buffer.from(data as ArrayBuffer).toString();
         const parsed = JSON.parse(str) as WsRequestMessage;
         this._handleWSMessage(ws, userId, parsed);
       } catch (err) {
         // Wire Protocol 格式校验失败：立刻拒绝
         this._sendWs(ws, {
-          type: 'res',
+          type: "res",
           id: null,
           ok: false,
           error: `消息格式错误: ${(err as Error).message}`,
@@ -416,7 +409,7 @@ class Gateway {
       }
     });
 
-    ws.on('error', (err: Error) => {
+    ws.on("error", (err: Error) => {
       console.error(`[Gateway] WebSocket 错误 (${connectionId}):`, err.message);
     });
   }
@@ -424,17 +417,13 @@ class Gateway {
   /**
    * 处理 WebSocket 消息（Wire Protocol 解析）
    */
-  private async _handleWSMessage(
-    ws: WebSocket,
-    userId: string,
-    message: WsRequestMessage
-  ): Promise<void> {
+  private async _handleWSMessage(ws: WebSocket, userId: string, message: WsRequestMessage): Promise<void> {
     if (!message.type) {
-      this._sendWs(ws, { type: 'res', id: message.id, ok: false, error: '缺少 type 字段' });
+      this._sendWs(ws, { type: "res", id: message.id, ok: false, error: "缺少 type 字段" });
       return;
     }
 
-    if (message.type === 'req') {
+    if (message.type === "req") {
       await this._handleRequest(ws, userId, message);
     }
   }
@@ -445,47 +434,43 @@ class Gateway {
    * Web 渠道的消息也通过 submitMessage 统一入口处理，
    * 确保经过与 CLI 相同的访问控制和幂等键检查流程。
    */
-  private _handleRequest(
-    ws: WebSocket,
-    userId: string,
-    message: WsRequestMessage
-  ): void {
+  private _handleRequest(ws: WebSocket, userId: string, message: WsRequestMessage): void {
     const { id: requestId, method, params } = message;
 
     switch (method) {
-      case 'send': {
+      case "send": {
         // Web 消息通过 submitMessage 统一入口 → 走完整流程
         this.submitMessage(
-          'web',
+          "web",
           {
             userId,
-            text: (params?.text as string) ?? '',
+            text: (params?.text as string) ?? "",
             idempotencyKey: (params?.idempotencyKey as string) ?? `web_${Date.now()}`,
           },
           {
             // 中间事件回调：通过 WebSocket 推送给浏览器
             onEvent: (type, payload) => {
-              this._sendWs(ws, { type: 'event', event: type, payload });
+              this._sendWs(ws, { type: "event", event: type, payload });
             },
             // 最终回复回调：通过 WebSocket 返回 Wire Protocol 响应
             onResponse: (response) => {
-              this._sendWs(ws, { type: 'res', id: requestId, ok: true, payload: response });
+              this._sendWs(ws, { type: "res", id: requestId, ok: true, payload: response });
             },
             // 错误回调
             onError: (err) => {
-              this._sendWs(ws, { type: 'res', id: requestId, ok: false, error: err.message });
+              this._sendWs(ws, { type: "res", id: requestId, ok: false, error: err.message });
             },
-          }
+          },
         );
         break;
       }
-      case 'status': {
+      case "status": {
         const agent = this.agent as unknown as {
           toolSystem: { getToolNames: () => string[] };
           sessionManager: { listSessions: () => unknown[] };
         };
         this._sendWs(ws, {
-          type: 'res',
+          type: "res",
           id: requestId,
           ok: true,
           payload: {
@@ -497,7 +482,7 @@ class Gateway {
       }
       default: {
         this._sendWs(ws, {
-          type: 'res',
+          type: "res",
           id: requestId,
           ok: false,
           error: `未知方法: ${method}`,
@@ -525,7 +510,7 @@ class Gateway {
     // 清理超时的 pending 消息（30 秒无响应视为超时）
     for (const [msgId, pending] of this._pendingMessages) {
       if (now - pending.timestamp > 30000) {
-        pending.callbacks.onError(new Error('处理超时'));
+        pending.callbacks.onError(new Error("处理超时"));
         this._pendingMessages.delete(msgId);
       }
     }

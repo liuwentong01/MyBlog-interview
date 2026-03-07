@@ -69,27 +69,27 @@
  * 关键点：CLI 和 Web 走的是完全相同的路径，都经过 Gateway。
  */
 
-import ToolSystem from './tool-system';
-import PluginLoader from './plugin-loader';
-import SessionManager from './session';
-import MemorySystem from './memory';
-import PromptBuilder from './prompt-builder';
-import { createLLMProvider } from './llm-provider';
-import Agent from './agent';
-import { CLIChannel, WebChannel } from './channel-adapter';
-import Gateway from './gateway';
-import type { SubmitCallbacks } from './types';
+import ToolSystem from "./tool-system";
+import PluginLoader from "./plugin-loader";
+import SessionManager from "./session";
+import MemorySystem from "./memory";
+import PromptBuilder from "./prompt-builder";
+import { createLLMProvider } from "./llm-provider";
+import Agent from "./agent";
+import { CLIChannel, WebChannel } from "./channel-adapter";
+import Gateway from "./gateway";
+import type { SubmitCallbacks } from "./types";
 
 async function main() {
-  console.log('='.repeat(50));
-  console.log('  🦞 Mini-OpenClaw — 简易 AI Agent 平台');
-  console.log('  用于学习 OpenClaw 的架构设计原理');
-  console.log('='.repeat(50));
+  console.log("=".repeat(50));
+  console.log("  🦞 Mini-OpenClaw — 简易 AI Agent 平台");
+  console.log("  用于学习 OpenClaw 的架构设计原理");
+  console.log("=".repeat(50));
   console.log();
 
   // ========== 1. 初始化工具系统 ==========
   const toolSystem = new ToolSystem();
-  console.log(`[启动] 工具系统已初始化，内置工具: ${toolSystem.getToolNames().join(', ')}`);
+  console.log(`[启动] 工具系统已初始化，内置工具: ${toolSystem.getToolNames().join(", ")}`);
 
   // ========== 2. 加载插件 ==========
   const pluginLoader = new PluginLoader(toolSystem);
@@ -109,12 +109,12 @@ async function main() {
     keepRecentCount: 10,
     memory,
   });
-  console.log('[启动] 会话管理器已初始化（已连接记忆系统）');
+  console.log("[启动] 会话管理器已初始化（已连接记忆系统）");
 
   // ========== 5. 初始化提示词组装器 ==========
   // PromptBuilder 每轮对话都从磁盘重新读取 workspace 文件（支持热更新）
   const promptBuilder = new PromptBuilder();
-  console.log('[启动] 提示词组装器已初始化');
+  console.log("[启动] 提示词组装器已初始化");
 
   // ========== 6. 创建 LLM 提供商 ==========
   // 默认 Mock 模式（无需 API Key）；设置 OPENCLAW_LLM=real 可切换到真实 API
@@ -134,10 +134,10 @@ async function main() {
   // ========== 8. 创建 Gateway ==========
   // Gateway 是消息的唯一入口，所有渠道的消息都通过 Gateway.submitMessage() 处理
   // Gateway 订阅 Agent 事件，将结果路由回对应的渠道连接
-  const PORT = parseInt(process.env.OPENCLAW_PORT || '3003', 10);
+  const PORT = parseInt(process.env.OPENCLAW_PORT || "3003", 10);
   const gateway = new Gateway({
     port: PORT,
-    host: process.env.OPENCLAW_HOST || '127.0.0.1',
+    host: process.env.OPENCLAW_HOST || "127.0.0.1",
     agent,
   });
 
@@ -148,8 +148,8 @@ async function main() {
   // 所有渠道必须注册到 Gateway，这样 Gateway 才能：
   //   a. 调用 channel.parseIncoming() 解析消息
   //   b. 调用 channel.checkAccess() 检查访问权限
-  gateway.registerChannel('cli', cliChannel);
-  gateway.registerChannel('web', webChannel);
+  gateway.registerChannel("cli", cliChannel);
+  gateway.registerChannel("web", webChannel);
 
   // ========== 10. 连接 CLI 渠道到 Gateway ==========
   //
@@ -161,13 +161,13 @@ async function main() {
   //   - onEvent:    Agent 中间事件（如 tool_call）→ 可选择展示给用户
   //   - onResponse: Agent 最终回复 → 格式化输出到终端
   //   - onError:    处理出错 → 显示错误信息
-  cliChannel.on('message', (rawText) => {
+  cliChannel.on("message", (rawText) => {
     console.log(`\n[CLI → Gateway] 收到消息: "${rawText}"`);
 
     const callbacks: SubmitCallbacks = {
       onEvent: (type, payload) => {
         // 中间事件：工具调用时实时展示
-        if (type === 'tool_call') {
+        if (type === "tool_call") {
           console.log(`  🔧 正在调用工具: ${payload.toolName}`);
         }
       },
@@ -182,7 +182,7 @@ async function main() {
       },
     };
 
-    gateway.submitMessage('cli', rawText, callbacks);
+    gateway.submitMessage("cli", rawText, callbacks);
   });
 
   // ========== 启动服务 ==========
@@ -191,21 +191,21 @@ async function main() {
   cliChannel.start();
 
   // ========== 优雅退出 ==========
-  process.on('SIGINT', () => {
-    console.log('\n[系统] 正在关闭...');
+  process.on("SIGINT", () => {
+    console.log("\n[系统] 正在关闭...");
     gateway.stop();
     cliChannel.stop();
     webChannel.stop();
     process.exit(0);
   });
 
-  process.on('SIGTERM', () => {
+  process.on("SIGTERM", () => {
     gateway.stop();
     process.exit(0);
   });
 }
 
-main().catch(err => {
-  console.error('启动失败:', err);
+main().catch((err) => {
+  console.error("启动失败:", err);
   process.exit(1);
 });

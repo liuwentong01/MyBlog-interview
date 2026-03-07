@@ -12,12 +12,12 @@
  * 简化版：使用 JSON 文件存储 + 关键词匹配搜索（替代向量相似度搜索）
  */
 
-import fs from 'fs';
-import path from 'path';
-import type { MemoryEntry, MemorySaveInput, ChatMessage } from './types';
+import fs from "fs";
+import path from "path";
+import type { MemoryEntry, MemorySaveInput, ChatMessage } from "./types";
 
-const MEMORY_DIR = path.join(__dirname, 'data', 'memory');
-const MEMORY_FILE = path.join(MEMORY_DIR, 'memories.json');
+const MEMORY_DIR = path.join(__dirname, "data", "memory");
+const MEMORY_FILE = path.join(MEMORY_DIR, "memories.json");
 
 class MemorySystem {
   private _memories: MemoryEntry[] = [];
@@ -39,7 +39,7 @@ class MemorySystem {
     const memory: MemoryEntry = {
       id: `mem_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       content: entry.content,
-      sessionId: entry.sessionId || 'unknown',
+      sessionId: entry.sessionId || "unknown",
       tags: entry.tags || [],
       timestamp: Date.now(),
     };
@@ -64,19 +64,19 @@ class MemorySystem {
     // 简化版的相关性搜索：基于关键词匹配
     const keywords = this._tokenize(query);
 
-    const scored = this._memories.map(mem => {
+    const scored = this._memories.map((mem) => {
       const memTokens = this._tokenize(mem.content);
       // 计算关键词重叠度
-      const overlap = keywords.filter(kw => memTokens.includes(kw)).length;
+      const overlap = keywords.filter((kw) => memTokens.includes(kw)).length;
       const score = keywords.length > 0 ? overlap / keywords.length : 0;
       return { memory: mem, score };
     });
 
     return scored
-      .filter(s => s.score > 0)
+      .filter((s) => s.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, topK)
-      .map(s => s.memory);
+      .map((s) => s.memory);
   }
 
   /**
@@ -88,14 +88,14 @@ class MemorySystem {
    * 简化版：从即将被压缩的消息中提取用户消息作为记忆
    */
   extractFromMessages(messages: ChatMessage[], sessionId: string): void {
-    const userMessages = messages.filter(m => m.role === 'user');
+    const userMessages = messages.filter((m) => m.role === "user");
     if (userMessages.length === 0) return;
 
-    const content = userMessages.map(m => m.content ?? '').join(' | ');
+    const content = userMessages.map((m) => m.content ?? "").join(" | ");
     this.save({
       content: `历史对话摘要：${content}`,
       sessionId,
-      tags: ['auto-extract', 'compaction'],
+      tags: ["auto-extract", "compaction"],
     });
   }
 
@@ -112,7 +112,7 @@ class MemorySystem {
 
     // 提取英文单词
     const englishWords = cleaned.match(/[a-z0-9]+/g) || [];
-    tokens.push(...englishWords.filter(w => w.length > 1));
+    tokens.push(...englishWords.filter((w) => w.length > 1));
 
     // 提取中文并做双字滑窗（例如 "你好世界" → ["你好", "好世", "世界"]）
     const chineseChars = cleaned.match(/[\u4e00-\u9fff]+/g) || [];
@@ -133,17 +133,17 @@ class MemorySystem {
   _load(): void {
     try {
       if (fs.existsSync(MEMORY_FILE)) {
-        const data = fs.readFileSync(MEMORY_FILE, 'utf-8');
+        const data = fs.readFileSync(MEMORY_FILE, "utf-8");
         this._memories = JSON.parse(data);
       }
     } catch (err) {
-      console.error('[Memory] 加载记忆失败:', (err as Error).message);
+      console.error("[Memory] 加载记忆失败:", (err as Error).message);
       this._memories = [];
     }
   }
 
   _persist(): void {
-    fs.writeFileSync(MEMORY_FILE, JSON.stringify(this._memories, null, 2), 'utf-8');
+    fs.writeFileSync(MEMORY_FILE, JSON.stringify(this._memories, null, 2), "utf-8");
   }
 
   _ensureDir(): void {

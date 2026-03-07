@@ -37,11 +37,11 @@
  *    → 避免提示词太长导致 AI 表现下降（简化版未实现精细筛选）
  */
 
-import fs from 'fs';
-import path from 'path';
-import type { MemoryEntry } from './types';
+import fs from "fs";
+import path from "path";
+import type { MemoryEntry } from "./types";
 
-const WORKSPACE_DIR = path.join(__dirname, 'workspace');
+const WORKSPACE_DIR = path.join(__dirname, "workspace");
 
 // 单文件最大字符数（对应 OpenClaw 的 agents.defaults.bootstrapMaxChars = 20000）
 const MAX_FILE_CHARS = 20000;
@@ -72,28 +72,28 @@ class PromptBuilder {
     // === 第一层：工作空间配置文件 ===
 
     // AGENTS.md — 核心指令（最重要，优先加载）
-    const agents = workspaceFiles['AGENTS.md'];
+    const agents = workspaceFiles["AGENTS.md"];
     if (agents) {
       sections.push(`## 核心指令\n${agents}`);
       totalChars += agents.length;
     }
 
     // SOUL.md — 人格和语气
-    const soul = workspaceFiles['SOUL.md'];
+    const soul = workspaceFiles["SOUL.md"];
     if (soul && totalChars + soul.length < MAX_TOTAL_CHARS) {
       sections.push(`## 人格设定\n${soul}`);
       totalChars += soul.length;
     }
 
     // USER.md — 用户信息
-    const user = workspaceFiles['USER.md'];
+    const user = workspaceFiles["USER.md"];
     if (user && totalChars + user.length < MAX_TOTAL_CHARS) {
       sections.push(`## 用户信息\n${user}`);
       totalChars += user.length;
     }
 
     // TOOLS.md — 工具使用备注
-    const tools = workspaceFiles['TOOLS.md'];
+    const tools = workspaceFiles["TOOLS.md"];
     if (tools && totalChars + tools.length < MAX_TOTAL_CHARS) {
       sections.push(`## 工具使用说明\n${tools}`);
       totalChars += tools.length;
@@ -104,21 +104,21 @@ class PromptBuilder {
     // 相关记忆（由记忆系统语义搜索得到）
     if (context.memories && context.memories.length > 0) {
       const memoryText = context.memories
-        .map(m => `- ${m.content} (${new Date(m.timestamp).toLocaleString('zh-CN')})`)
-        .join('\n');
+        .map((m) => `- ${m.content} (${new Date(m.timestamp).toLocaleString("zh-CN")})`)
+        .join("\n");
       sections.push(`## 相关记忆\n${memoryText}`);
     }
 
     // === 第三层：运行时信息 ===
 
     const runtime = [
-      `当前时间：${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}`,
-      `会话 ID：${context.sessionId || '未知'}`,
-      `可用工具：${(context.toolNames || []).join(', ') || '无'}`,
-    ].join('\n');
+      `当前时间：${new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })}`,
+      `会话 ID：${context.sessionId || "未知"}`,
+      `可用工具：${(context.toolNames || []).join(", ") || "无"}`,
+    ].join("\n");
     sections.push(`## 运行时信息\n${runtime}`);
 
-    return sections.join('\n\n');
+    return sections.join("\n\n");
   }
 
   /**
@@ -137,13 +137,13 @@ class PromptBuilder {
       return files;
     }
 
-    const entries = fs.readdirSync(WORKSPACE_DIR).filter(f => f.endsWith('.md'));
+    const entries = fs.readdirSync(WORKSPACE_DIR).filter((f) => f.endsWith(".md"));
     for (const entry of entries) {
       try {
-        let content = fs.readFileSync(path.join(WORKSPACE_DIR, entry), 'utf-8');
+        let content = fs.readFileSync(path.join(WORKSPACE_DIR, entry), "utf-8");
         // 按 OpenClaw 的规则截断过长的文件
         if (content.length > MAX_FILE_CHARS) {
-          content = content.slice(0, MAX_FILE_CHARS) + '\n... (内容已截断)';
+          content = content.slice(0, MAX_FILE_CHARS) + "\n... (内容已截断)";
         }
         files[entry] = content;
       } catch (err) {

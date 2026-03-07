@@ -19,22 +19,22 @@
  */
 
 module.exports = {
-  name: 'greeting-tool',
-  description: '一个打招呼的示例插件，展示 OpenClaw 的插件扩展机制',
+  name: "greeting-tool",
+  description: "一个打招呼的示例插件，展示 OpenClaw 的插件扩展机制",
 
   tools: [
     {
-      name: 'greeting',
-      description: '向指定的人打招呼，生成个性化问候语',
+      name: "greeting",
+      description: "向指定的人打招呼，生成个性化问候语",
       parameters: {
-        type: 'object',
+        type: "object",
         properties: {
           name: {
-            type: 'string',
-            description: '要打招呼的人的名字',
+            type: "string",
+            description: "要打招呼的人的名字",
           },
         },
-        required: ['name'],
+        required: ["name"],
       },
       execute: async (args) => {
         const greetings = [

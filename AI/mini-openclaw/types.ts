@@ -15,7 +15,7 @@ export interface IncomingMessage {
   senderName: string;
   text: string;
   timestamp: number;
-  peerKind: 'main' | 'dm' | 'group';
+  peerKind: "main" | "dm" | "group";
   groupId: string | null;
   idempotencyKey: string;
 }
@@ -51,7 +51,7 @@ export interface ToolDefinition {
 
 /** OpenAI function calling 兼容的工具定义格式（发给 LLM） */
 export interface LLMToolDefinition {
-  type: 'function';
+  type: "function";
   function: {
     name: string;
     description: string;
@@ -70,7 +70,7 @@ export interface LLMToolCall {
 
 /** 聊天消息（对话历史中的一条） */
 export interface ChatMessage {
-  role: 'user' | 'assistant' | 'tool' | 'system';
+  role: "user" | "assistant" | "tool" | "system";
   content: string | null;
   toolCalls?: LLMToolCall[];
   toolCallId?: string;
@@ -87,7 +87,7 @@ export interface LLMRequest {
 export interface LLMResponse {
   content: string | null;
   toolCalls: LLMToolCall[] | null;
-  finishReason: 'stop' | 'tool_calls';
+  finishReason: "stop" | "tool_calls";
 }
 
 /** LLM 提供商接口 */

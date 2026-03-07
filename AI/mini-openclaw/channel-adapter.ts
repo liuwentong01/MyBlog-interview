@@ -13,10 +13,10 @@
  * 简化版实现两个渠道：CLI（命令行）和 Web（浏览器）
  */
 
-import readline from 'readline';
-import { EventEmitter } from 'events';
-import type { IncomingMessage, AgentResponse } from './types';
-import type { WebSocket } from 'ws';
+import readline from "readline";
+import { EventEmitter } from "events";
+import type { IncomingMessage, AgentResponse } from "./types";
+import type { WebSocket } from "ws";
 
 // ========================================================================
 // BaseChannel - 渠道适配器基类
@@ -44,7 +44,7 @@ class BaseChannel extends EventEmitter {
    * @returns {object} 统一格式的消息
    */
   parseIncoming(rawInput: string): IncomingMessage {
-    throw new Error('子类必须实现 parseIncoming 方法');
+    throw new Error("子类必须实现 parseIncoming 方法");
   }
 
   /**
@@ -56,7 +56,7 @@ class BaseChannel extends EventEmitter {
    * - formatOutgoing(text, metadata) 传入文本和元数据
    */
   formatOutgoing(textOrResponse: string | AgentResponse, metadata?: Record<string, unknown>): string {
-    throw new Error('子类必须实现 formatOutgoing 方法');
+    throw new Error("子类必须实现 formatOutgoing 方法");
   }
 
   /**
@@ -76,12 +76,12 @@ class BaseChannel extends EventEmitter {
 
   /** 启动渠道 */
   start(): void {
-    throw new Error('子类必须实现 start 方法');
+    throw new Error("子类必须实现 start 方法");
   }
 
   /** 停止渠道 */
   stop(): void {
-    throw new Error('子类必须实现 stop 方法');
+    throw new Error("子类必须实现 stop 方法");
   }
 }
 
@@ -99,7 +99,7 @@ class CLIChannel extends BaseChannel {
   _rl: readline.Interface | null = null;
 
   constructor(config: CLIChannelConfig = {}) {
-    super('cli');
+    super("cli");
     if (config.allowedUsers) {
       config.allowedUsers.forEach((u) => this.allowlist.add(u));
     }
@@ -111,8 +111,8 @@ class CLIChannel extends BaseChannel {
       output: process.stdout,
     });
 
-    console.log('\n🤖 Mini-OpenClaw CLI 模式已启动');
-    console.log('   输入消息与 AI 对话，输入 /quit 退出\n');
+    console.log("\n🤖 Mini-OpenClaw CLI 模式已启动");
+    console.log("   输入消息与 AI 对话，输入 /quit 退出\n");
     this._prompt();
   }
 
@@ -126,26 +126,26 @@ class CLIChannel extends BaseChannel {
   parseIncoming(text: string): IncomingMessage {
     return {
       id: `msg_${Date.now()}`,
-      channelType: 'cli',
-      senderId: 'cli_user',
-      senderName: 'CLI 用户',
+      channelType: "cli",
+      senderId: "cli_user",
+      senderName: "CLI 用户",
       text: text.trim(),
       timestamp: Date.now(),
       // CLI 用户视为 main 会话（最高权限，对应用户自己的操作）
-      peerKind: 'main',
+      peerKind: "main",
       groupId: null,
       idempotencyKey: `cli_${Date.now()}`,
     };
   }
 
   formatOutgoing(textOrResponse: string | AgentResponse, metadata?: Record<string, unknown>): string {
-    const response = typeof textOrResponse === 'object' ? textOrResponse : (metadata as AgentResponse | undefined);
-    const text = typeof textOrResponse === 'string' ? textOrResponse : textOrResponse.text;
+    const response = typeof textOrResponse === "object" ? textOrResponse : (metadata as AgentResponse | undefined);
+    const text = typeof textOrResponse === "string" ? textOrResponse : textOrResponse.text;
     console.log(`\n🤖 AI: ${text}`);
 
     // 如果有工具调用，展示调用详情
     if (response?.toolCalls && response.toolCalls.length > 0) {
-      console.log('\n📋 工具调用记录:');
+      console.log("\n📋 工具调用记录:");
       for (const tc of response.toolCalls) {
         console.log(`   🔧 ${tc.name}(${JSON.stringify(tc.arguments)}) → ${tc.result.slice(0, 80)}...`);
       }
@@ -153,19 +153,19 @@ class CLIChannel extends BaseChannel {
 
     const processingTime = response?.processingTime ?? 0;
     console.log(`   ⏱  处理耗时: ${processingTime}ms\n`);
-    return '';
+    return "";
   }
 
   _prompt(): void {
     if (!this._rl) return;
-    this._rl.question('👤 你: ', (input) => {
+    this._rl.question("👤 你: ", (input) => {
       if (!input || !input.trim()) {
         this._prompt();
         return;
       }
 
-      if (input.trim() === '/quit') {
-        console.log('👋 再见！');
+      if (input.trim() === "/quit") {
+        console.log("👋 再见！");
         this.stop();
         process.exit(0);
         return;
@@ -174,7 +174,7 @@ class CLIChannel extends BaseChannel {
       // 发射原始文本，由 Gateway.submitMessage() 统一处理
       // Gateway 会调用 channel.parseIncoming() 解析 + channel.checkAccess() 检查权限
       // 这确保 CLI 和 Web 走完全相同的处理流程
-      this.emit('message', input.trim());
+      this.emit("message", input.trim());
     });
   }
 
@@ -197,7 +197,7 @@ class WebChannel extends BaseChannel {
   _connections: Map<string, WebSocket> = new Map();
 
   constructor(config: WebChannelConfig = {}) {
-    super('web');
+    super("web");
     if (config.allowedUsers) {
       config.allowedUsers.forEach((u) => this.allowlist.add(u));
     }
@@ -205,7 +205,7 @@ class WebChannel extends BaseChannel {
   }
 
   start(): void {
-    console.log('[WebChannel] Web 渠道已就绪，等待 WebSocket 连接');
+    console.log("[WebChannel] Web 渠道已就绪，等待 WebSocket 连接");
   }
 
   stop(): void {
@@ -223,7 +223,7 @@ class WebChannel extends BaseChannel {
     this._connections.set(userId, ws);
     console.log(`[WebChannel] 用户 ${userId} 已连接`);
 
-    ws.on('close', () => {
+    ws.on("close", () => {
       this._connections.delete(userId);
       console.log(`[WebChannel] 用户 ${userId} 已断开`);
     });
@@ -231,33 +231,33 @@ class WebChannel extends BaseChannel {
 
   parseIncoming(rawInput: string | Record<string, unknown>): IncomingMessage {
     // rawInput 为 WebSocket 原始字符串时 JSON.parse；Gateway 也可能传入已解析对象
-    const rawMessage = (typeof rawInput === 'string' ? JSON.parse(rawInput) : rawInput) as {
+    const rawMessage = (typeof rawInput === "string" ? JSON.parse(rawInput) : rawInput) as {
       userId?: string;
       userName?: string;
       text: string;
-      peerKind?: 'main' | 'dm' | 'group';
+      peerKind?: "main" | "dm" | "group";
       idempotencyKey?: string;
     };
     return {
       id: `msg_${Date.now()}`,
-      channelType: 'web',
-      senderId: rawMessage.userId || 'web_anonymous',
-      senderName: rawMessage.userName || 'Web 用户',
+      channelType: "web",
+      senderId: rawMessage.userId || "web_anonymous",
+      senderName: rawMessage.userName || "Web 用户",
       text: rawMessage.text,
       timestamp: Date.now(),
       // Web 用户默认为 dm（私聊）会话
-      peerKind: rawMessage.peerKind || 'dm',
+      peerKind: rawMessage.peerKind || "dm",
       groupId: null,
       idempotencyKey: rawMessage.idempotencyKey || `web_${Date.now()}`,
     };
   }
 
   formatOutgoing(textOrResponse: string | AgentResponse, metadata?: Record<string, unknown>): string {
-    const response = typeof textOrResponse === 'object' ? textOrResponse : (metadata as AgentResponse | undefined);
-    const text = typeof textOrResponse === 'string' ? textOrResponse : textOrResponse.text;
+    const response = typeof textOrResponse === "object" ? textOrResponse : (metadata as AgentResponse | undefined);
+    const text = typeof textOrResponse === "string" ? textOrResponse : textOrResponse.text;
     // Web 渠道的消息格式化：生成 JSON 推送给浏览器
     const formatted = {
-      type: 'response',
+      type: "response",
       id: response?.id,
       text,
       toolCalls: response?.toolCalls,
