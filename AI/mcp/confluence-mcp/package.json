@@ -1,0 +1,26 @@
+{
+  "name": "confluence-mcp",
+  "version": "1.0.0",
+  "description": "Confluence MCP Server - 通过 MCP 协议访问公司 Confluence 平台",
+  "type": "module",
+  "license": "ISC",
+  "bin": {
+    "confluence-mcp": "./dist/index.js"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc --build",
+    "clean": "rm -rf dist",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.1",
+    "axios": "^1.10.0",
+    "turndown": "^7.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/turndown": "^5.0.5",
+    "typescript": "^5.7.3"
+  }
+}
