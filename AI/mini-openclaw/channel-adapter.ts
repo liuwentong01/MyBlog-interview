@@ -24,7 +24,7 @@ import type { WebSocket } from "ws";
 // ========================================================================
 class BaseChannel extends EventEmitter {
   name: string;
-  allowlist: Set<string>;
+  allowlist: Set<string>; // ts声明，编译后不存在
   requireMention: boolean;
 
   constructor(name: string) {
@@ -49,7 +49,7 @@ class BaseChannel extends EventEmitter {
 
   /**
    * 将 Agent 回复格式化为平台特定格式并发送
-   * 处理 Markdown 转换、长消息切分、媒体上传等
+   * 处理 Markdown 转换、长消息切分、媒体上传等（因为不同平台markdown不太一样，并且不同平台支持的单条消息长度不同，因此需要对agent返回的消息进行处理）
    *
    * 支持两种调用方式（兼容现有调用方）：
    * - formatOutgoing(response) 传入完整 AgentResponse
@@ -106,6 +106,7 @@ class CLIChannel extends BaseChannel {
   }
 
   start(): void {
+    // 专门用来在终端里做"一问一答"式的交互，让用户输入，并打印AI的回复
     this._rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
@@ -153,13 +154,16 @@ class CLIChannel extends BaseChannel {
 
     const processingTime = response?.processingTime ?? 0;
     console.log(`   ⏱  处理耗时: ${processingTime}ms\n`);
+    // cli模式直接打印终端即可，无需返回字符串
     return "";
   }
 
   _prompt(): void {
     if (!this._rl) return;
+    // 在终端打印 👤 你: 然后挂起等待，光标停在冒号后面
     this._rl.question("👤 你: ", (input) => {
       if (!input || !input.trim()) {
+        // 如果输入为空，则重新提示
         this._prompt();
         return;
       }

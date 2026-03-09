@@ -8,8 +8,6 @@
  * Gateway 是所有消息的唯一入口。不管消息来自 CLI、Web、WhatsApp 还是 Telegram，
  * 都必须经过 Gateway 处理后才会到达 Agent。
  *
- * 类比：机场调度塔台，所有航班（消息）都经过中央塔台，由它分配到正确的跑道（Agent）。
- *
  * ===== 消息处理流程（对应 OpenClaw 的四阶段） =====
  *
  *   阶段 1: Connect（连接）
@@ -107,10 +105,35 @@ class Gateway {
      * Agent 处理完成后发射事件，Gateway 通过 messageId 查找 pending entry，
      * 然后调用对应的 callbacks 将结果路由回去。
      */
+    // {
+    //   CLI 用户发的一条消息
+    //   "msg_a1b2c3" => {
+    //     channelName: "cli",
+    //     idempotencyKey: "idem_cli_001",
+    //     callbacks: {
+    //       onEvent: (type, payload) => { /* 往 stdout 打印 "思考中..." */ },
+    //       onResponse: (response) => { /* 把回复写到终端 */ },
+    //       onError: (error) => { /* 终端打印错误 */ },
+    //     },
+    //     timestamp: 1741405200000,
+    //   },
+
+    //   Web 用户通过 WebSocket 发的一条消息
+    //   "msg_x7y8z9" => {
+    //     channelName: "web",
+    //     idempotencyKey: "idem_web_042",
+    //     callbacks: {
+    //       onEvent: (type, payload) => { /* ws.send({ type: "event", ... }) */ },
+    //       onResponse: (response) => { /* ws.send({ type: "response", ... }) */ },
+    //       onError: (error) => { /* ws.send({ type: "error", ... }) */ },
+    //     },
+    //     timestamp: 1741405201500,
+    //   },
+    // }
     this._pendingMessages = new Map();
 
     /**
-     * 幂等键缓存：idempotencyKey -> response
+     * TODO: 幂等键缓存：idempotencyKey -> response
      * OpenClaw 要求所有 side-effecting 操作携带幂等键，
      * 防止网络重试导致同一条消息被重复处理。
      */
@@ -210,7 +233,7 @@ class Gateway {
    * 这种 pub/sub 模式使得 Gateway 和 Agent 松耦合：
    *   - Gateway 不需要等待 Agent 完成（非阻塞）
    *   - Agent 不需要知道消息来自哪个渠道（只管发射事件）
-   *   - 未来可以轻松接入消息队列（Redis Streams 等）
+   *   TODO 消息队列？ - 未来可以轻松接入消息队列（Redis Streams 等）
    */
   private _subscribeAgentEvents(): void {
     // 开始处理事件 → 向客户端发送"正在输入"提示
