@@ -32,13 +32,13 @@
  *  ┌─────────────────────────────────────────────┐
  *  │        Gateway (网关，消息唯一入口)           │
  *  │  订阅 Agent 事件，路由结果到对应渠道          │
- *  └───────┬─────────────────────────┬───────────┘
- *          │ 注册                     │ 注册
- *          ▼                         ▼
- *  ┌──────────────┐          ┌──────────────┐
- *  │  CLIChannel  │          │  WebChannel  │
- *  │  (命令行)     │          │  (浏览器)     │
- *  └──────────────┘          └──────────────┘
+ *  └───────┬──────────────┬──────────────┬───────┘
+ *          │ 注册          │ 注册          │ 注册
+ *          ▼              ▼              ▼
+ *  ┌────────────┐  ┌────────────┐  ┌─────────────────┐
+ *  │ CLIChannel │  │ WebChannel │  │ TelegramChannel │
+ *  │ (命令行)    │  │ (浏览器)    │  │ (Telegram Bot)  │
+ *  └────────────┘  └────────────┘  └─────────────────┘
  *
  * ===== 消息流转图（所有渠道统一路径） =====
  *
@@ -46,7 +46,7 @@
  *    │
  *    ▼
  *  Channel Adapter ──parseIncoming()──► 统一消息格式
- *    │
+ *
  *    ▼
  *  Gateway.submitMessage()
  *    ├── checkAccess()  ──► 访问控制（白名单/配对/群聊策略）
@@ -76,7 +76,7 @@ import MemorySystem from "./memory";
 import PromptBuilder from "./prompt-builder";
 import { createLLMProvider } from "./llm-provider";
 import Agent from "./agent";
-import { CLIChannel, WebChannel } from "./channel-adapter";
+import { CLIChannel, WebChannel, TelegramChannel } from "./channel-adapter";
 import Gateway from "./gateway";
 import type { SubmitCallbacks } from "./types";
 
@@ -144,12 +144,16 @@ async function main() {
   // ========== 9. 创建并注册渠道 ==========
   const cliChannel = new CLIChannel();
   const webChannel = new WebChannel();
+  const telegramChannel = new TelegramChannel({
+    botToken: process.env.TELEGRAM_BOT_TOKEN,
+  });
 
   // 所有渠道必须注册到 Gateway，这样 Gateway 才能：
   //   a. 调用 channel.parseIncoming() 解析消息
   //   b. 调用 channel.checkAccess() 检查访问权限
   gateway.registerChannel("cli", cliChannel);
   gateway.registerChannel("web", webChannel);
+  gateway.registerChannel("telegram", telegramChannel);
 
   // ========== 10. 连接 CLI 渠道到 Gateway ==========
   //
@@ -185,9 +189,37 @@ async function main() {
     gateway.submitMessage("cli", rawText, callbacks);
   });
 
+  // ========== 11. 连接 Telegram 渠道到 Gateway ==========
+  //
+  // Telegram 的消息通过 Long Polling 拉取，拿到的是 TelegramUpdate 对象。
+  // 同样通过 Gateway.submitMessage() 统一入口处理，确保走完整流程。
+  // 回复通过 Telegram Bot API 的 sendMessage 发送回对应的聊天。
+  telegramChannel.on("message", (update: { message?: { from: { id: number }; chat: { id: number } } }) => {
+    const chatId = String(update.message?.chat.id);
+    console.log(`\n[Telegram → Gateway] 收到消息，chatId: ${chatId}`);
+
+    const callbacks: SubmitCallbacks = {
+      onEvent: (type, payload) => {
+        if (type === "tool_call") {
+          console.log(`  🔧 [Telegram] 正在调用工具: ${payload.toolName}`);
+        }
+      },
+      onResponse: (response) => {
+        const formatted = telegramChannel.formatOutgoing(response);
+        telegramChannel.sendMessage(chatId, formatted);
+      },
+      onError: (err) => {
+        telegramChannel.sendMessage(chatId, `❌ 错误: ${err.message}`);
+      },
+    };
+
+    gateway.submitMessage("telegram", update, callbacks);
+  });
+
   // ========== 启动服务 ==========
   gateway.start();
   webChannel.start();
+  telegramChannel.start();
   cliChannel.start();
 
   // ========== 优雅退出 ==========
@@ -196,11 +228,13 @@ async function main() {
     gateway.stop();
     cliChannel.stop();
     webChannel.stop();
+    telegramChannel.stop();
     process.exit(0);
   });
 
   process.on("SIGTERM", () => {
     gateway.stop();
+    telegramChannel.stop();
     process.exit(0);
   });
 }

@@ -292,4 +292,184 @@ class WebChannel extends BaseChannel {
   }
 }
 
-export { BaseChannel, CLIChannel, WebChannel };
+// ========================================================================
+// TelegramChannel - Telegram 渠道
+// 通过 Telegram Bot API 的 Long Polling 接收消息，HTTP POST 发送回复
+//
+// Telegram Bot 消息流：
+//   Telegram 服务器 ──getUpdates()──► TelegramChannel
+//     → parseIncoming() 转为统一格式
+//     → Gateway.submitMessage() 统一处理
+//     → formatOutgoing() 转为 Telegram 格式
+//     → sendMessage API 发送回复
+//
+// 与 CLI/Web 的区别：
+//   - CLI 通过 stdin/stdout 交互
+//   - Web 通过 WebSocket 双向通信
+//   - Telegram 通过 HTTP Long Polling 拉取 + HTTP POST 推送
+//
+// 需要环境变量：TELEGRAM_BOT_TOKEN
+// ========================================================================
+interface TelegramChannelConfig {
+  botToken?: string;
+  allowedUsers?: string[];
+  pollingInterval?: number;
+}
+
+/** Telegram API getUpdates 返回的消息结构（简化版） */
+interface TelegramUpdate {
+  update_id: number;
+  message?: {
+    message_id: number;
+    from: { id: number; first_name: string; username?: string };
+    chat: { id: number; type: "private" | "group" | "supergroup" };
+    text?: string;
+    date: number;
+  };
+}
+
+class TelegramChannel extends BaseChannel {
+  private _botToken: string;
+  private _pollingInterval: number;
+  private _offset: number = 0;
+  private _polling: boolean = false;
+  private _pollTimer: ReturnType<typeof setTimeout> | null = null;
+
+  constructor(config: TelegramChannelConfig = {}) {
+    super("telegram");
+    this._botToken = config.botToken || process.env.TELEGRAM_BOT_TOKEN || "";
+    this._pollingInterval = config.pollingInterval ?? 1000;
+    if (config.allowedUsers) {
+      config.allowedUsers.forEach((u) => this.allowlist.add(u));
+    }
+  }
+
+  start(): void {
+    if (!this._botToken) {
+      console.log("[TelegramChannel] 未配置 TELEGRAM_BOT_TOKEN，Telegram 渠道未启动");
+      return;
+    }
+    this._polling = true;
+    console.log("[TelegramChannel] Telegram 渠道已启动，开始轮询消息");
+    this._poll();
+  }
+
+  stop(): void {
+    this._polling = false;
+    if (this._pollTimer) {
+      clearTimeout(this._pollTimer);
+      this._pollTimer = null;
+    }
+    console.log("[TelegramChannel] Telegram 渠道已停止");
+  }
+
+  /**
+   * Long Polling 拉取新消息
+   *
+   * Telegram Bot API 提供两种接收消息方式：
+   *   - Webhook：Telegram 主动 POST 到你的服务器（需要公网地址）
+   *   - Long Polling：你主动调用 getUpdates 拉取（适合开发/本地环境）
+   *
+   * 这里用 Long Polling，通过 offset 参数确保不重复处理。
+   */
+  private async _poll(): Promise<void> {
+    if (!this._polling) return;
+
+    try {
+      const url = `https://api.telegram.org/bot${this._botToken}/getUpdates?offset=${this._offset}&timeout=30`;
+      const res = await fetch(url);
+      const data = (await res.json()) as { ok: boolean; result: TelegramUpdate[] };
+
+      if (data.ok && data.result.length > 0) {
+        for (const update of data.result) {
+          this._offset = update.update_id + 1;
+          if (update.message?.text) {
+            this.emit("message", update);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("[TelegramChannel] 轮询出错:", (err as Error).message);
+    }
+
+    this._pollTimer = setTimeout(() => this._poll(), this._pollingInterval);
+  }
+
+  parseIncoming(rawInput: string | TelegramUpdate): IncomingMessage {
+    const update = (typeof rawInput === "string" ? JSON.parse(rawInput) : rawInput) as TelegramUpdate;
+    const msg = update.message!;
+    const chatType = msg.chat.type;
+
+    let peerKind: "main" | "dm" | "group";
+    if (chatType === "private") {
+      peerKind = "dm";
+    } else {
+      peerKind = "group";
+    }
+
+    return {
+      id: `msg_tg_${msg.message_id}_${Date.now()}`,
+      channelType: "telegram",
+      senderId: String(msg.from.id),
+      senderName: msg.from.first_name + (msg.from.username ? ` (@${msg.from.username})` : ""),
+      text: msg.text || "",
+      timestamp: msg.date * 1000,
+      peerKind,
+      groupId: chatType !== "private" ? String(msg.chat.id) : null,
+      idempotencyKey: `tg_${msg.message_id}`,
+    };
+  }
+
+  formatOutgoing(textOrResponse: string | AgentResponse, metadata?: Record<string, unknown>): string {
+    const response = typeof textOrResponse === "object" ? textOrResponse : (metadata as AgentResponse | undefined);
+    const text = typeof textOrResponse === "string" ? textOrResponse : textOrResponse.text;
+
+    // Telegram 支持 MarkdownV2 格式，但特殊字符需要转义
+    // 简化版直接用纯文本，附加工具调用摘要
+    let output = text;
+    if (response?.toolCalls && response.toolCalls.length > 0) {
+      const toolSummary = response.toolCalls.map((tc) => `🔧 ${tc.name}: ${tc.result.slice(0, 60)}...`).join("\n");
+      output += `\n\n📋 工具调用:\n${toolSummary}`;
+    }
+    if (response?.processingTime) {
+      output += `\n⏱ ${response.processingTime}ms`;
+    }
+    return output;
+  }
+
+  /**
+   * 通过 Telegram Bot API 发送消息
+   *
+   * @param chatId - Telegram 聊天 ID（私聊或群组）
+   * @param text - 要发送的文本
+   */
+  async sendMessage(chatId: string, text: string): Promise<void> {
+    if (!this._botToken) return;
+
+    // Telegram 单条消息最大 4096 字符，超长需要切分
+    const chunks = this._splitMessage(text, 4096);
+    for (const chunk of chunks) {
+      try {
+        await fetch(`https://api.telegram.org/bot${this._botToken}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: chatId, text: chunk }),
+        });
+      } catch (err) {
+        console.error("[TelegramChannel] 发送消息失败:", (err as Error).message);
+      }
+    }
+  }
+
+  /** Telegram 单条消息最大 4096 字符，超长自动切分 */
+  private _splitMessage(text: string, maxLength: number): string[] {
+    if (text.length <= maxLength) return [text];
+    const chunks: string[] = [];
+    for (let i = 0; i < text.length; i += maxLength) {
+      chunks.push(text.slice(i, i + maxLength));
+    }
+    return chunks;
+  }
+}
+
+export { BaseChannel, CLIChannel, WebChannel, TelegramChannel };
