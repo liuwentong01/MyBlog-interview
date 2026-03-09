@@ -4,8 +4,10 @@ import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 export interface Config {
   /** Confluence 实例的 base URL，例如 https://confluence.example.com */
   baseUrl: string;
-  /** Confluence Personal Access Token */
-  token: string;
+  /** Confluence Personal Access Token（直连时使用） */
+  token?: string;
+  /** 浏览器 Cookie 字符串（SSO 环境下使用，从浏览器复制） */
+  cookie?: string;
 }
 
 /** 工具处理函数签名 */
