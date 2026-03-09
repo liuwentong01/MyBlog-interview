@@ -22,7 +22,7 @@ function debounce(fn, wait, flag) {
 // 1. flag -> immediate，语义更清晰
 // 2. var -> let/const，arguments -> rest 参数
 // 3. 保留 fn 返回值
-// 4. 增加 cancel 方法支持手动取消
+// 4. 增加 cancel 方法支持手动取消，重要
 function debounceOptimized(fn, wait, immediate = false) {
   let timer = null;
   let result;
@@ -52,3 +52,4 @@ function debounceOptimized(fn, wait, immediate = false) {
 
   return debounced;
 }
+
