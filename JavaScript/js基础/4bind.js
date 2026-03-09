@@ -14,19 +14,3 @@ Function.prototype.bind2 = function (context) {
   fn.prototype = new F();
   return fn;
 };
-
-Function.prototype.bind = function (context) {
-  var self = this;
-  var args = Array.prototype.slice.call(arguments, 1);
-  function fn() {
-    var bindArgs = Array.prototype.slice.call(arguments);
-    return self.apply(
-      this instanceof F ? this : context,
-      args.concat(bindArgs)
-    );
-  }
-  function F() {}
-  F.prototype = this;
-  fn.prototype = new F();
-  return fn;
-};
