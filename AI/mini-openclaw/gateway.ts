@@ -3,6 +3,71 @@
  *
  * 对应 OpenClaw 架构中的 Gateway Control Plane，是整个系统的大脑中枢。
  *
+ * ===== 整体流程图 =====
+ *
+ *  ┌─────────┐    ┌─────────────┐
+ *  │   CLI   │    │ Web Browser │
+ *  └────┬────┘    └──────┬──────┘
+ *       │                │ WebSocket 握手
+ *       │                ▼
+ *       │         ┌──────────────────────┐
+ *       │         │  _handleConnection() │ ← 阶段1: Connect
+ *       │         │  分配 connectionId   │
+ *       │         │  注册到 WebChannel   │
+ *       │         └──────────┬───────────┘
+ *       │                    │ ws.on("message")
+ *       │                    ▼
+ *       │         ┌──────────────────────┐
+ *       │         │  _handleWSMessage()  │ ← Wire Protocol 解析
+ *       │         │  JSON.parse + 校验   │
+ *       │         └──────────┬───────────┘
+ *       │                    │ type === "req"
+ *       │                    ▼
+ *       │         ┌──────────────────────┐
+ *       │         │  _handleRequest()    │
+ *       │         │  method: send/status │
+ *       │         └──────────┬───────────┘
+ *       │                    │ 构造 callbacks（onEvent/onResponse/onError）
+ *       │                    │
+ *       ▼                    ▼
+ *  ┌─────────────────────────────────────┐
+ *  │         submitMessage()             │ ← 统一入口，CLI 和 Web 在此汇合
+ *  │                                     │
+ *  │  1. channel.parseIncoming()         │ ← 阶段2a: 消息解析
+ *  │  2. channel.checkAccess()           │ ← 阶段2b: 访问控制
+ *  │     ├─ 拒绝 → onError              │
+ *  │  3. _idempotencyCache.has()         │ ← 阶段3a: 幂等键检查
+ *  │     ├─ 命中 → 返回缓存结果          │
+ *  │  4. _pendingMessages.set()          │ ← 阶段3b: 注册 pending
+ *  │  5. agent.processMessage()          │ ← 异步分发给 Agent
+ *  └─────────────────┬───────────────────┘
+ *                    │ 异步（fire-and-forget）
+ *                    ▼
+ *             ┌─────────────┐
+ *             │    Agent    │
+ *             │  处理消息    │
+ *             └──────┬──────┘
+ *                    │ emit 事件
+ *                    ▼
+ *  ┌─────────────────────────────────────┐
+ *  │    _subscribeAgentEvents()          │ ← 阶段4: 事件路由
+ *  │                                     │
+ *  │  agent:processing → onEvent()       │   "正在处理"
+ *  │  agent:tool_call  → onEvent()       │   工具调用进度
+ *  │  agent:response   → onResponse()    │   最终回复 + 缓存结果
+ *  │  agent:error      → onError()       │   错误信息
+ *  │                                     │
+ *  │  通过 messageId 查 _pendingMessages │
+ *  │  调用对应的 callbacks 路由回客户端    │
+ *  └─────────────────┬───────────────────┘
+ *                    │
+ *       ┌────────────┴────────────┐
+ *       ▼                         ▼
+ *  ┌─────────┐           ┌──────────────┐
+ *  │  CLI    │           │ Web Browser  │
+ *  │ stdout  │           │ ws.send(JSON)│
+ *  └─────────┘           └──────────────┘
+ *
  * ===== 核心职责 =====
  *
  * Gateway 是所有消息的唯一入口。不管消息来自 CLI、Web、WhatsApp 还是 Telegram，

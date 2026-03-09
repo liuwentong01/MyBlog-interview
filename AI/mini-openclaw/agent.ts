@@ -3,20 +3,85 @@
  *
  * 对应 OpenClaw 架构中的 Agent Runtime，是整个系统最核心的部分。
  *
- * Agent 是真正执行 AI 对话和工具调用的地方。
- * 每轮对话严格执行四个步骤：
+ * ===== 整体流程图 =====
  *
- *   步骤 1：会话解析 (Session Resolution)
- *           → 根据消息来源确定属于哪个会话，会话也是安全边界
- *
- *   步骤 2：上下文组装 (Context Assembly)
- *           → 加载会话历史 + 搜索相关记忆 + 拼装系统提示词
- *
- *   步骤 3：执行循环 (Execution Loop)
- *           → 调用 LLM → 如果有工具调用 → 执行工具 → 将结果回传给 LLM → 循环
- *
- *   步骤 4：保存状态 (Save State)
- *           → 将对话记录和工具调用结果存入会话历史 + 提取记忆
+ *  Gateway 调用
+ *       │
+ *       ▼
+ *  ┌──────────────────────────────────────────────────────────┐
+ *  │  processMessage(message)                                 │
+ *  │                                                          │
+ *  │  emit("agent:processing")  ←── 通知 Gateway "开始处理"   │
+ *  │       │                                                  │
+ *  │       ▼                                                  │
+ *  │  ┌────────────────────────────────────────────┐          │
+ *  │  │ 步骤1: 会话解析 (Session Resolution)        │          │
+ *  │  │ sessionManager.resolveSessionId(message)   │          │
+ *  │  │ → 根据 channelType + senderId + groupId    │          │
+ *  │  │   确定唯一的 sessionId                      │          │
+ *  │  └────────────────────┬───────────────────────┘          │
+ *  │                       ▼                                  │
+ *  │  ┌────────────────────────────────────────────┐          │
+ *  │  │ 步骤2: 上下文组装 (Context Assembly)        │          │
+ *  │  │                                            │          │
+ *  │  │ a. memory.search(text)     → 搜索相关记忆   │          │
+ *  │  │ b. promptBuilder.build()   → 系统提示词     │          │
+ *  │  │ c. session.getHistory()    → 会话历史       │          │
+ *  │  │ d. toolSystem.getToolDefs()→ 工具定义       │          │
+ *  │  │                                            │          │
+ *  │  │ 输出: { systemPrompt, history, tools }     │          │
+ *  │  └────────────────────┬───────────────────────┘          │
+ *  │                       ▼                                  │
+ *  │  ┌────────────────────────────────────────────┐          │
+ *  │  │ 步骤3: 执行循环 (Execution Loop)            │          │
+ *  │  │                                            │          │
+ *  │  │         ┌──────────────────┐               │          │
+ *  │  │         │  llmProvider.chat │               │          │
+ *  │  │         │  发送完整上下文    │               │          │
+ *  │  │         └────────┬─────────┘               │          │
+ *  │  │                  │                         │          │
+ *  │  │          ┌───────┴───────┐                 │          │
+ *  │  │          ▼               ▼                 │          │
+ *  │  │   有 tool_calls     无 tool_calls          │          │
+ *  │  │          │          (finishReason=stop)     │          │
+ *  │  │          │               │                 │          │
+ *  │  │          ▼               ▼                 │          │
+ *  │  │  ┌──────────────┐  返回 finalContent       │          │
+ *  │  │  │ 逐个执行工具   │                         │          │
+ *  │  │  │              │                         │          │
+ *  │  │  │ emit ←─────────── 通知 Gateway          │          │
+ *  │  │  │ ("agent:     │   "正在调用工具"          │          │
+ *  │  │  │  tool_call") │                         │          │
+ *  │  │  │              │                         │          │
+ *  │  │  │ toolSystem   │                         │          │
+ *  │  │  │ .execute()   │                         │          │
+ *  │  │  └──────┬───────┘                         │          │
+ *  │  │         │                                 │          │
+ *  │  │         ▼                                 │          │
+ *  │  │  工具结果追加到 messages                    │          │
+ *  │  │         │                                 │          │
+ *  │  │         └─── 回到 llmProvider.chat ───┘    │          │
+ *  │  │              (最多 maxToolRounds 轮)       │          │
+ *  │  └────────────────────┬───────────────────────┘          │
+ *  │                       ▼                                  │
+ *  │  ┌────────────────────────────────────────────┐          │
+ *  │  │ 步骤4: 保存状态 (Save State)                │          │
+ *  │  │                                            │          │
+ *  │  │ a. session.appendMessage(user msg)          │          │
+ *  │  │ b. session.appendMessage(tool summary)      │          │
+ *  │  │ c. session.appendMessage(ai reply)          │          │
+ *  │  │ d. memory.save(提取记忆)                     │          │
+ *  │  └────────────────────┬───────────────────────┘          │
+ *  │                       ▼                                  │
+ *  │  emit("agent:response", { messageId, response })         │
+ *  │       │                                                  │
+ *  │       │  如果任何步骤出错:                                 │
+ *  │       │  emit("agent:error", { messageId, error })       │
+ *  └───────┼──────────────────────────────────────────────────┘
+ *          │
+ *          ▼
+ *       Gateway
+ *    路由回客户端
  *
  * ===== 事件驱动设计 =====
  *
