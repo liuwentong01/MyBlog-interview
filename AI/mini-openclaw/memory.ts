@@ -10,6 +10,7 @@
  * 默认使用文件存储，记忆写入 MEMORY.md 和 memory/YYYY-MM-DD.md 等文件。
  *
  * 简化版：使用 JSON 文件存储 + 关键词匹配搜索（替代向量相似度搜索）
+ * TODO 能给我讲讲向量相似度搜索要怎么实现吗
  */
 
 import fs from "fs";

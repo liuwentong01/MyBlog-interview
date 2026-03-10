@@ -1,0 +1,18 @@
+{
+  "name": "shell-test-project",
+  "version": "1.0.0",
+  "description": "用于练习 Shell 命令的测试项目",
+  "main": "hello.js",
+  "scripts": {
+    "start": "node hello.js",
+    "dev": "node --watch hello.js",
+    "build": "echo 'building...'"
+  },
+  "dependencies": {
+    "express": "^4.18.0",
+    "lodash": "^4.17.21"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

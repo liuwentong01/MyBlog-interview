@@ -1,0 +1,12 @@
+Alice 88
+Bob 95
+Charlie 72
+David 88
+Eve 91
+Frank 65
+Grace 95
+Helen 78
+Ivan 82
+Jack 91
+Kate 72
+Leo 88

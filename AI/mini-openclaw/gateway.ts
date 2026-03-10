@@ -160,6 +160,34 @@ class Gateway {
      * 已注册的渠道适配器：channelName -> ChannelAdapter
      * OpenClaw 支持 16+ 渠道，每个渠道通过 registerChannel 注册
      */
+    // {
+    //   "cli" => CLIChannel {
+    //     name: "cli",
+    //     allowlist: Set {},              // 空 = 不限制
+    //     requireMention: false,
+    //     _rl: ReadlineInterface { ... }, // stdin/stdout 交互句柄
+    //   },
+    //
+    //   "web" => WebChannel {
+    //     name: "web",
+    //     allowlist: Set {},
+    //     requireMention: false,
+    //     _connections: Map {             // userId -> WebSocket 连接池
+    //       "web_conn_1741405200000_a3f2" => WebSocket { readyState: 1, ... },
+    //       "web_conn_1741405205000_b7c1" => WebSocket { readyState: 1, ... },
+    //     },
+    //   },
+    //
+    //   "telegram" => TelegramChannel {
+    //     name: "telegram",
+    //     allowlist: Set { "123456789", "987654321" },  // Telegram user ID 白名单
+    //     requireMention: false,
+    //     _botToken: "7012345678:AAF...",
+    //     _pollingInterval: 1000,
+    //     _offset: 582473921,             // getUpdates 的 offset，防止重复拉取
+    //     _polling: true,
+    //   },
+    // }
     this._channels = new Map();
 
     /**
@@ -202,6 +230,53 @@ class Gateway {
      * OpenClaw 要求所有 side-effecting 操作携带幂等键，
      * 防止网络重试导致同一条消息被重复处理。
      */
+    // {
+    //   CLI 用户发的一条消息的缓存结果
+    //   "cli_1741405200000" => {
+    //     response: {
+    //       id: "resp_abc123",
+    //       messageId: "msg_1741405200000",
+    //       sessionId: "sess_cli_user",
+    //       text: "北京今天晴，气温 22°C，适合户外活动。",
+    //       toolCalls: [
+    //         { name: "get_weather", arguments: { city: "北京" }, result: "晴 22°C", round: 1 },
+    //       ],
+    //       timestamp: 1741405203000,
+    //       processingTime: 3000,
+    //     },
+    //     expiry: 1741405203000,          // 写入时间戳，超过 _idempotencyTTL(5min) 后被清理
+    //   },
+    //
+    //   Web 用户发的一条消息的缓存结果
+    //   "web_1741405201500" => {
+    //     response: {
+    //       id: "resp_xyz789",
+    //       messageId: "msg_1741405201500",
+    //       sessionId: "sess_web_conn_1741405200000_a3f2",
+    //       text: "Hello! How can I help you?",
+    //       toolCalls: null,
+    //       timestamp: 1741405202800,
+    //       processingTime: 1300,
+    //     },
+    //     expiry: 1741405202800,
+    //   },
+    //
+    //   Telegram 消息的缓存结果（幂等键基于 message_id，天然去重）
+    //   "tg_48291" => {
+    //     response: {
+    //       id: "resp_tg_001",
+    //       messageId: "msg_tg_48291_1741405210000",
+    //       sessionId: "sess_123456789",
+    //       text: "已为你查询到航班信息...",
+    //       toolCalls: [
+    //         { name: "search_flights", arguments: { from: "PEK", to: "SHA" }, result: "CA1234 08:00...", round: 1 },
+    //       ],
+    //       timestamp: 1741405215000,
+    //       processingTime: 5000,
+    //     },
+    //     expiry: 1741405215000,
+    //   },
+    // }
     this._idempotencyCache = new Map();
     this._idempotencyTTL = 5 * 60 * 1000;
 
@@ -298,7 +373,7 @@ class Gateway {
    * 这种 pub/sub 模式使得 Gateway 和 Agent 松耦合：
    *   - Gateway 不需要等待 Agent 完成（非阻塞）
    *   - Agent 不需要知道消息来自哪个渠道（只管发射事件）
-   *   TODO 消息队列？ - 未来可以轻松接入消息队列（Redis Streams 等）
+   *   - 未来可以轻松接入消息队列（Redis Streams 等）（现在只是本地使用使用eventemitter进行通信，后面可以接入Redis Streams，以防止node进程重启导致事件丢失）
    */
   private _subscribeAgentEvents(): void {
     // 开始处理事件 → 向客户端发送"正在输入"提示
