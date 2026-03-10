@@ -1,46 +1,39 @@
 /**
- * 数组扁平化， 方法一：递归 方法二：flat（）
+ * 数组扁平化
  */
-<<<<<<< HEAD
-var arr0 = [[222, [333, 236], 444], [55, 66, 77], 7];
-=======
 var arr = [[222, [333, 236], 444], [55, 66, 77], 7];
->>>>>>> af38c9aae2c631c04c8b9c204ca7bbd1372e5903
-var res = [];
-function toArr(arr) {
+
+// 方法一：递归
+function flatByRecursion(arr) {
+  var res = [];
   for (let i = 0; i < arr.length; i++) {
-    if (arr[i] instanceof Array) {
-      toArr(arr[i]);
+    if (Array.isArray(arr[i])) {
+      res = res.concat(flatByRecursion(arr[i]));
     } else {
       res.push(arr[i]);
     }
   }
+  return res;
 }
-<<<<<<< HEAD
-toArr(arr0);
-=======
-toArr(arr);
->>>>>>> af38c9aae2c631c04c8b9c204ca7bbd1372e5903
-console.log(res);
+console.log(flatByRecursion(arr));
 
-//方法二
-var arr = [[1, 2], 3];
-console.log(arr.flat(Infinity)); //....vscode不支持但是google浏览器是支持的
+// 方法二：Array.prototype.flat
+console.log(arr.flat(Infinity));
 
-//方法三
-var arr = [
-  [0, 1],
-  [2, 3],
-  [4, [5, 6, 7]]
-];
-function arrFlat(arr) {
+// 方法三：reduce
+function flatByReduce(arr) {
   return arr.reduce(
-    (pre, cur) => pre.concat(Array.isArray(cur) ? arrFlat(cur) : cur),
+    (pre, cur) => pre.concat(Array.isArray(cur) ? flatByReduce(cur) : cur),
     []
   );
 }
-arrFlat(arr);
-<<<<<<< HEAD
+console.log(flatByReduce(arr));
 
-=======
->>>>>>> af38c9aae2c631c04c8b9c204ca7bbd1372e5903
+// 方法四：展开运算符（迭代式）
+function flatBySpread(arr) {
+  while (arr.some(Array.isArray)) {
+    arr = [].concat(...arr);
+  }
+  return arr;
+}
+console.log(flatBySpread(arr));

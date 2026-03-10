@@ -1,49 +1,36 @@
-//不用手写
-function jsonp({ url, params, callback }) {
+function jsonp({ url, params = {}, callback }) {
   return new Promise((resolve, reject) => {
-<<<<<<< HEAD
-    let script = document.createElement("script");
-    window[callback] = function (data) {
+    const script = document.createElement("script");
+
+    // 用随机函数名避免全局污染和命名冲突
+    const cbName = callback || `jsonp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+    window[cbName] = function (data) {
       resolve(data);
       document.body.removeChild(script);
+      delete window[cbName];
     };
-    params = { ...params, callback }; // wd=b&callback=show
-    let arrs = [];
-    for (let key in params) {
-      arrs.push(`${key}=${params[key]}`);
-    }
-    script.src = `${url}?${arrs.join("&")}`;
+
+    script.onerror = function () {
+      document.body.removeChild(script);
+      delete window[cbName];
+      reject(new Error(`JSONP request to ${url} failed`));
+    };
+
+    const query = Object.entries({ ...params, callback: cbName })
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+      .join("&");
+
+    script.src = `${url}?${query}`;
     document.body.appendChild(script);
   });
 }
+
+// 使用示例
 jsonp({
   url: "http://localhost:3000/say",
   params: { wd: "Iloveyou" },
   callback: "show",
 }).then((data) => {
-  // Get！！ 此处是执行回调函数
   console.log(data);
 });
-=======
-    let script = document.createElement('script')
-    window[callback] = function(data) {
-      resolve(data)
-      document.body.removeChild(script)
-    }
-    params = { ...params, callback } // wd=b&callback=show
-    let arrs = []
-    for (let key in params) {
-      arrs.push(`${key}=${params[key]}`)
-    }
-    script.src = `${url}?${arrs.join('&')}`
-    document.body.appendChild(script)
-  })
-}
-jsonp({
-  url: 'http://localhost:3000/say',
-  params: { wd: 'Iloveyou' },
-  callback: 'show'
-}).then(data => {
-  console.log(data)
-})
->>>>>>> af38c9aae2c631c04c8b9c204ca7bbd1372e5903

@@ -1,32 +1,32 @@
-<<<<<<< HEAD
-//注意ajax其他api
-const xhr = new XMLHttpRequest()
-xhr.onreadystatechange = () => {
-    if (xhr.readystate == 4) {
-        if ((xhr.status >= 200 && xhr.status < 300) || xhr.status == 304) {
-            alert(xhr.responseText)
-        } else {
-            alert("Request was unsuccessful: " + xhr.status)
-        }
-    }
+// 手写 AJAX —— 基于 Promise 封装，支持 GET/POST
+function ajax({ method = "GET", url, data = null, headers = {} }) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, url, true);
+
+    xhr.setRequestHeader("Accept", "application/json");
+    Object.keys(headers).forEach((key) => {
+      xhr.setRequestHeader(key, headers[key]);
+    });
+
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState !== 4) return;
+      if (xhr.status >= 200 && xhr.status < 300 || xhr.status === 304) {
+        resolve(xhr.responseText);
+      } else {
+        reject(new Error(`Request failed with status ${xhr.status}`));
+      }
+    };
+
+    xhr.onerror = function () {
+      reject(new Error("Network error"));
+    };
+
+    xhr.send(data ? JSON.stringify(data) : null);
+  });
 }
-xhr.open("get", "example.php", true)
-xhr.send(null)
-=======
-const getJSON = function(url) {
-    return new Promise((resolve, reject) => {
-        const xhr = XMLHttpRequest ? new XMLHttpRequest() : new ActiveXObject('Mscrosoft.XMLHttp');
-        xhr.open('GET', url, false);
-        xhr.setRequestHeader('Accept', 'application/json');
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState !== 4) return;
-            if (xhr.status === 200 || xhr.status === 304) {
-                resolve(xhr.responseText);
-            } else {
-                reject(new Error(xhr.responseText));
-            }
-        }
-        xhr.send();
-    })
-}
->>>>>>> af38c9aae2c631c04c8b9c204ca7bbd1372e5903
+
+// 使用示例
+ajax({ url: "example.php" })
+  .then((res) => console.log(res))
+  .catch((err) => console.error(err));
