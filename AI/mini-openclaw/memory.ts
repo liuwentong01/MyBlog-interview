@@ -11,6 +11,100 @@
  *
  * 简化版：使用 JSON 文件存储 + 关键词匹配搜索（替代向量相似度搜索）
  * TODO 能给我讲讲向量相似度搜索要怎么实现吗
+ *
+ * ===== 整体流程图 =====
+ *
+ * 记忆系统有两个写入来源和一个读取出口：
+ *
+ *  ┌─────────────────────┐       ┌──────────────────────────┐
+ *  │ 来源1: Agent 主动存  │       │ 来源2: 会话压缩前自动提取  │
+ *  │ (对话中调用 save_    │       │ (SessionManager._compact  │
+ *  │  memory 工具)        │       │  触发 Memory Flush)       │
+ *  └──────────┬──────────┘       └────────────┬─────────────┘
+ *             │                                │
+ *             │ save({                         │ extractFromMessages(
+ *             │   content: "用户喜欢深色主题",   │   oldMessages,
+ *             │   sessionId: "agent:...",       │   sessionId
+ *             │   tags: ["preference"]          │ )
+ *             │ })                              │
+ *             │                                │
+ *             ▼                                ▼
+ *  ┌─────────────────────────────────────────────────────────┐
+ *  │                      save()                              │
+ *  │                                                         │
+ *  │  生成 MemoryEntry:                                       │
+ *  │  {                                                      │
+ *  │    id: "mem_1741405200000_a3f2b1",                      │
+ *  │    content: "用户喜欢深色主题",                           │
+ *  │    sessionId: "agent:default:main",                     │
+ *  │    tags: ["preference"],                                │
+ *  │    timestamp: 1741405200000                              │
+ *  │  }                                                      │
+ *  │                                                         │
+ *  │  _memories.push(entry) → _persist()                     │
+ *  │                                                         │
+ *  └──────────────────────┬──────────────────────────────────┘
+ *                         │
+ *                         ▼
+ *           data/memory/memories.json （磁盘持久化）
+ *           ┌──────────────────────────────────────┐
+ *           │ [                                    │
+ *           │   { id, content, sessionId,          │
+ *           │     tags, timestamp },               │
+ *           │   { id, content, sessionId,          │
+ *           │     tags, timestamp },               │
+ *           │   ...                                │
+ *           │ ]                                    │
+ *           └──────────────────────────────────────┘
+ *
+ *
+ *  读取出口：Agent 组装上下文时检索相关记忆
+ *
+ *  PromptBuilder.build()
+ *       │
+ *       │ memory.search("天气", topK=3)
+ *       ▼
+ *  ┌─────────────────────────────────────────────────────────┐
+ *  │                     search()                             │
+ *  │                                                         │
+ *  │  Step 1: 分词                                            │
+ *  │    query = "今天天气怎么样"                                │
+ *  │    ↓ _tokenize()                                        │
+ *  │    keywords = ["今天", "天天", "天气", "气怎", "怎么", "么样"] │
+ *  │                                                         │
+ *  │  Step 2: 对每条记忆计算匹配分数                             │
+ *  │    _memories.forEach → {                                │
+ *  │      memTokens = _tokenize(mem.content)                 │
+ *  │      overlap = keywords 和 memTokens 的交集数量            │
+ *  │      score = overlap / keywords.length                  │
+ *  │    }                                                    │
+ *  │                                                         │
+ *  │  Step 3: 按 score 降序排列，取 topK 条                    │
+ *  │    score > 0 的结果 → sort → slice(0, topK)             │
+ *  │                                                         │
+ *  └──────────────────────┬──────────────────────────────────┘
+ *                         │
+ *                         ▼
+ *                  返回 MemoryEntry[]
+ *                  注入到 system prompt 中
+ *                  ┌──────────────────────────────┐
+ *                  │ "相关记忆：                    │
+ *                  │  - 用户上次问过北京天气         │
+ *                  │  - 用户偏好摄氏度显示"         │
+ *                  └──────────────────────────────┘
+ *
+ *
+ * ===== _tokenize() 分词策略 =====
+ *
+ *  输入: "Hello你好世界test"
+ *         │
+ *         ├─ 英文: /[a-z0-9]+/g → ["hello", "test"]  (过滤单字符)
+ *         │
+ *         └─ 中文: /[\u4e00-\u9fff]+/g → "你好世界"
+ *                   │ 双字滑窗 (bigram)
+ *                   └─→ ["你好", "好世", "世界"]
+ *         │
+ *         └─ 合并 → ["hello", "test", "你好", "好世", "世界"]
  */
 
 import fs from "fs";
