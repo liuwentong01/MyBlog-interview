@@ -1,4 +1,5 @@
 /**
+ * 测试一下git
  * agent.js - Agent 运行时（核心引擎）
  *
  * 对应 OpenClaw 架构中的 Agent Runtime，是整个系统最核心的部分。
@@ -410,3 +411,4 @@ class Agent extends EventEmitter {
 }
 
 export default Agent;
+
