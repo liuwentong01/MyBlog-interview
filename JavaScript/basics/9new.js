@@ -4,6 +4,10 @@
 // 步骤：创建对象 → 绑定原型 → 执行构造函数 → 判断返回值
 function myNew1(Constructor, ...args) {
   // Object.create 一步到位：创建空对象并将其 __proto__ 指向 Constructor.prototype
+  // 这三行等价
+  // const obj = Object.create(Constructor.prototype);   // 推荐，创建时直接指定
+  // Object.setPrototypeOf(obj, Constructor.prototype);   // 创建后再设置，规范方法
+  // obj.__proto__ = Constructor.prototype;                // 创建后再设置，非规范但广泛支持
   const obj = Object.create(Constructor.prototype);
   const result = Constructor.apply(obj, args);
   // 构造函数返回对象或函数时使用该返回值，否则使用新创建的对象
