@@ -1,5 +1,5 @@
 /**
- * Tree Shaking（摇树优化）实现演示
+ * Tree Shaking 实现演示
  *
  * ═══════════════════════════════════════════════════════
  *  核心原理
@@ -14,7 +14,8 @@
  * 为什么 ES Module 可以？
  *   import { add } from './math'     ← 静态声明，编译期就确定了只用 add
  *   export const add = ...           ← 静态声明，编译期就确定了导出 add
- *
+ *   
+ * @TODO 为什么CommonJS做不了Tree Shaking？ 给我讲讲 （我理解可以通过require静态分析引用的哪些模块呀，  math[dynamicKey]()dynamicKey为什么是动态的）
  * ═══════════════════════════════════════════════════════
  *  webpack 的真实流程（5 步）
  * ═══════════════════════════════════════════════════════
@@ -46,9 +47,9 @@
  *  本文件简化点
  * ═══════════════════════════════════════════════════════
  *
- *  - 只处理命名导出（export const / export function），不处理 re-export
+ *  - 只处理命名导出（export const / export function），不处理 re-export（@TODO 讲讲什么什么叫命名导出， re-export是什么）
  *  - 不引入 Terser，直接在 AST 层面移除 unused 代码（合并了步骤 4-5）
- *  - 不处理 sideEffects 标记
+ *  - 不处理 sideEffects 标记 （@TODO 讲讲什么叫sideEffects标记）
  *
  * 运行方式：cd WebPack/mini-webpack && npm install && cd .. && node tree-shaking-demo.js
  */
