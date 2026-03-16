@@ -2,5 +2,9 @@
 node_modules/
 dist/
 
+# demo 运行时产出
+WebPack/code-splitting-dist/
+WebPack/source-map-dist/
+
 # mini-openclaw 运行时数据（会话记录、记忆存储）
 AI/mini-openclaw/data/
