@@ -36,12 +36,23 @@ cd WebPack/mini-devserver && npm install
 npm start            # Start dev server with HMR (runs dev-server.js)
 ```
 
-### Loader demos (`WebPack/`)
-- `async-loader-demo.js` — Webpack 5 dynamic import() pipeline
-- `esm-loader-demo.js` — ES Module loader internals
-- `module-loader-demo.js` — CommonJS module loader internals
+### Standalone demos (`WebPack/`)
 
-Standalone annotated files; run directly with `node`.
+Module system internals:
+- `module-loader-demo.js` — CommonJS module loader internals
+- `esm-loader-demo.js` — ES Module loader internals (live binding, `__esModule` flag)
+- `async-loader-demo.js` — Webpack 5 dynamic `import()` runtime (JSONP chunk loading)
+
+Webpack 5 advanced features:
+- `tapable-demo.js` — All 7 Hook types (SyncHook, SyncBailHook, SyncWaterfallHook, SyncLoopHook, AsyncSeriesHook, AsyncSeriesBailHook, AsyncParallelHook) with simulated Compiler
+- `loader-pipeline-demo.js` — Loader full lifecycle: pitch phase (left→right), normal phase (right→left), pitch bailout, `this.async()`, `this.data` sharing
+- `tree-shaking-demo.js` — ES Module static analysis, providedExports/usedExports, unused export removal (requires mini-webpack deps)
+- `code-splitting-demo.js` — Compilation-time chunk splitting for `import()`, JSONP runtime generation (requires mini-webpack deps)
+- `source-map-demo.js` — VLQ Base64 encoding, Source Map v3 generation (requires mini-webpack deps)
+- `persistent-cache-demo.js` — Filesystem cache with ETag-based invalidation (requires mini-webpack deps)
+- `module-federation-demo.js` — Container protocol (`init`/`get`), Host/Remote architecture, shared dependency version negotiation
+
+Run directly with `node`. Files marked "requires mini-webpack deps" need `cd mini-webpack && npm install` first.
 
 ## AI Sub-projects
 

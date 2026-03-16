@@ -1,0 +1,49 @@
+{
+  "index.js": {
+    "etag": "8289fd325fcdb3d0",
+    "value": {
+      "id": "index.js",
+      "_source": "const greet = require(\"greeting.js\");\nconst utils = require(\"utils.js\");\nconsole.log(greet('World'));\nconsole.log(utils.format('webpack'));",
+      "dependencies": [
+        {
+          "depModuleId": "greeting.js"
+        },
+        {
+          "depModuleId": "utils.js"
+        }
+      ]
+    },
+    "timestamp": 1773632955388
+  },
+  "greeting.js": {
+    "etag": "4c428d6319f521d3",
+    "value": {
+      "id": "greeting.js",
+      "_source": "const helper = require(\"helper.js\");\nmodule.exports = function (name) {\n  return helper.prefix() + 'Hello, ' + name + '!';\n};",
+      "dependencies": [
+        {
+          "depModuleId": "helper.js"
+        }
+      ]
+    },
+    "timestamp": 1773632955388
+  },
+  "helper.js": {
+    "etag": "1ed4c8640237fa08",
+    "value": {
+      "id": "helper.js",
+      "_source": "module.exports = {\n  prefix: function () {\n    return '[v1] ';\n  }\n};",
+      "dependencies": []
+    },
+    "timestamp": 1773632955388
+  },
+  "utils.js": {
+    "etag": "40130f075fbdf27d",
+    "value": {
+      "id": "utils.js",
+      "_source": "module.exports = {\n  format: function (s) {\n    return '<<' + s + '>>';\n  }\n};",
+      "dependencies": []
+    },
+    "timestamp": 1773632955389
+  }
+}
