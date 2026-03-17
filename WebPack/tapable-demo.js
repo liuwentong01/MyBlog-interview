@@ -29,7 +29,7 @@
  *    hook.tap('name', fn)         → 同步回调
  *    hook.tapAsync('name', fn)    → 异步回调（通过 callback 参数通知完成）
  *    hook.tapPromise('name', fn)  → 异步回调（返回 Promise）
- *
+ *@TODO: 这里我没太理解，以上注册方式，同步回调只能注册同步类型的Hook（比如SyncHook），异步回调只能注册异步类型的Hook（比如AsyncSeriesHook）  ，是这样吗
  * ═══════════════════════════════════════════════════════
  *  在 webpack 中的使用场景
  * ═══════════════════════════════════════════════════════
@@ -91,6 +91,7 @@ class Hook {
 
 class SyncHook extends Hook {
   call(...args) {
+    // TODO 这里的this会指父类的实例，还是子类的实例？
     for (const tap of this._taps) {
       tap.fn(...args);
     }
