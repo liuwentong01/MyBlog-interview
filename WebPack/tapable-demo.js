@@ -1,4 +1,53 @@
 /**
+ * ═══════════════════════════════════════════════════════
+ *  @TODO 问题与解答
+ * ═══════════════════════════════════════════════════════
+ *
+ * Q1: (第32行) tap/tapAsync/tapPromise 三种注册方式，同步回调只能注册同步类型的 Hook（如 SyncHook），
+ *     异步回调只能注册异步类型的 Hook（如 AsyncSeriesHook），是这样吗？
+ *
+ * A1: 不完全是。规则如下：
+ *     - Sync 类型的 Hook（SyncHook、SyncBailHook 等）：只能用 tap() 注册同步回调。
+ *       如果用 tapAsync/tapPromise 注册，在真正的 tapable 库中会直接抛错。
+ *       因为 Sync Hook 的 call() 是同步执行的，无法处理异步逻辑。
+ *     - Async 类型的 Hook（AsyncSeriesHook、AsyncParallelHook 等）：三种方式都可以用！
+ *       可以用 tap() 注册同步回调，也可以用 tapAsync() 或 tapPromise() 注册异步回调。
+ *       从本文件的 AsyncSeriesHook.callAsync() 实现中就能看到，它对 sync/async/promise
+ *       三种 type 分别做了处理。这也是 webpack 插件开发中常见的混用模式。
+ *     总结：Sync Hook 只能 tap()；Async Hook 可以 tap() + tapAsync() + tapPromise() 混用。
+ *
+ * ───────────────────────────────────────────────────────
+ *
+ * Q2: (第55行) _argNames 的作用是什么？整个文件没有用到。
+ *
+ * A2: _argNames 在本文件的简化实现中确实没有被使用，但在真正的 tapable 库中有两个作用：
+ *     1. 代码生成优化：tapable 内部会根据 argNames 动态生成（new Function）调用代码，
+ *        例如 new SyncHook(['name', 'age']) 会生成 function(name, age){...} 的形式，
+ *        避免使用 ...args 展开运算符，从而获得更好的 V8 执行性能。
+ *     2. 参数数量校验：call() 时传入的参数个数会被限制为 argNames.length，
+ *        多余的参数会被截断。例如 new SyncHook(['name']) 后调用 hook.call('a','b')，
+ *        回调只会收到 'a'，'b' 会被丢弃。这保证了 Hook 的"契约"——声明几个参数就传几个。
+ *     3. 文档/自描述：argNames 让开发者在定义 Hook 时就明确"这个钩子需要哪些参数"，
+ *        相当于一种轻量的类型声明，提高了可读性和可维护性。
+ *
+ * ───────────────────────────────────────────────────────
+ *
+ * Q3: (第95行) SyncHook.call() 中的 this 会指向父类的实例还是子类的实例？
+ *
+ * A3: 指向子类（SyncHook）的实例。
+ *     JavaScript 中 this 始终指向调用方法的那个对象，与方法定义在哪个类中无关。
+ *     当你执行 const hook = new SyncHook(['name']); hook.call('webpack') 时：
+ *     - new SyncHook() 创建了一个 SyncHook 实例
+ *     - 由于 SyncHook 没有定义自己的 constructor，会调用父类 Hook 的 constructor
+ *     - 但 this 始终是这个 SyncHook 实例（不存在"父类实例"这种东西）
+ *     - hook.call() 中 this._taps 访问的就是这个实例上的 _taps 属性
+ *     本质上，class 继承中只有一个实例对象。"父类构造函数"只是在子类实例上初始化属性，
+ *     并不会创建一个独立的"父类实例"。所以 this 永远指向 new 出来的那个子类实例。
+ *
+ * ═══════════════════════════════════════════════════════
+ */
+
+/**
  * Tapable 完整实现
  *
  * ═══════════════════════════════════════════════════════
@@ -29,7 +78,6 @@
  *    hook.tap('name', fn)         → 同步回调
  *    hook.tapAsync('name', fn)    → 异步回调（通过 callback 参数通知完成）
  *    hook.tapPromise('name', fn)  → 异步回调（返回 Promise）
- *@TODO: 这里我没太理解，以上注册方式，同步回调只能注册同步类型的Hook（比如SyncHook），异步回调只能注册异步类型的Hook（比如AsyncSeriesHook）  ，是这样吗
  * ═══════════════════════════════════════════════════════
  *  在 webpack 中的使用场景
  * ═══════════════════════════════════════════════════════
@@ -91,7 +139,6 @@ class Hook {
 
 class SyncHook extends Hook {
   call(...args) {
-    // TODO 这里的this会指父类的实例，还是子类的实例？
     for (const tap of this._taps) {
       tap.fn(...args);
     }
@@ -539,21 +586,6 @@ async function main() {
 
     await compiler.run();
   }
-
-  // ── 总结 ─────────────────────────────────────────────────────────────
-  console.log("\n=== 总结 ===\n");
-  console.log("  Hook 类型         执行方式      核心特点");
-  console.log("  ─────────────────────────────────────────────────");
-  console.log("  SyncHook          同步串行      忽略返回值");
-  console.log("  SyncBailHook      同步串行      非 undefined 中断");
-  console.log("  SyncWaterfallHook 同步串行      返回值传给下一个");
-  console.log("  SyncLoopHook      同步循环      非 undefined 从头重来");
-  console.log("  AsyncSeriesHook   异步串行      等上一个完成再下一个");
-  console.log("  AsyncSeriesBailHook 异步串行    callback 传值中断");
-  console.log("  AsyncParallelHook 异步并行      全部完成后回调");
-  console.log("");
-  console.log("  webpack 的 200+ 钩子全部基于这些类型，");
-  console.log("  理解了这 7 种 Hook 就理解了 webpack 插件协作的全部机制。");
 }
 
 main();
