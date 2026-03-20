@@ -42,7 +42,6 @@
  *    2. 跳过读取源文件
  *    3. 跳过后续所有 loader 的 normal
  *    4. 将 pitch 的返回值作为上一个 loader 的输入
- *
  *  示例：css-loader.pitch() 返回了内容
  *
  *    style-loader.pitch()  → 无返回值，继续
@@ -54,7 +53,7 @@
  *    style-loader("处理后的内容")  ← pitch 的返回值传给上一个 loader 的 normal
  *
  *  这就是 style-loader 的工作原理：
- *    style-loader.pitch() 返回一段 JS 代码，
+ *    style-loader.pitch() 返回一段 JS 代码， // @TODO走正常的流程不好吗，为什么要这样设计？
  *    这段 JS require 了 css-loader 的处理结果，并将其注入到 <style> 标签中。
  *    因此 style-loader 的 normal 函数根本不需要执行。
  *
