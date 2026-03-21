@@ -23,7 +23,7 @@
 | 搜索引擎 | ripgrep | vendor binary | 极致性能、跨平台 |
 | 语法解析 | tree-sitter-bash | WASM binary | 安全解析 Bash 命令 |
 | 协议扩展 | MCP | JSON-RPC 2.0 | 标准化工具接入 |
-| 构建打包 | Bun bundler | 单文件 bundle | 极速打包、零配置 |
+| 构建打包 | esbuild | 单文件 bundle | 极速打包（Go 实现） |
 | Schema 验证 | Zod | - | 类型安全的运行时验证 |
 | 图片处理 | Sharp | 可选依赖 | 高性能图片处理 |
 
@@ -223,28 +223,29 @@ program
     └── argument: "/"
 ```
 
-#### 8. Bun Bundler
+#### 8. esbuild
 
-**为什么选 Bun 而非 webpack/esbuild？**
+**为什么选 esbuild？**
 
 ```
 构建工具对比：
-┌──────────┬──────────┬──────────┬──────────┬──────────┐
-│   特性   │   Bun    │ esbuild  │ webpack  │ Rollup   │
-├──────────┼──────────┼──────────┼──────────┼──────────┤
-│ 构建速度 │ ★★★★★   │ ★★★★★   │ ★★☆☆☆   │ ★★★☆☆   │
-│ 配置简洁 │ ★★★★★   │ ★★★★☆   │ ★★☆☆☆   │ ★★★☆☆   │
-│ 单文件输出│ ★★★★★   │ ★★★★☆   │ ★★★★☆   │ ★★★★★   │
-│ Node 兼容│ ★★★★☆   │ ★★★★★   │ ★★★★★   │ ★★★★☆   │
-│ 生态成熟 │ ★★★☆☆   │ ★★★★☆   │ ★★★★★   │ ★★★★☆   │
-└──────────┴──────────┴──────────┴──────────┴──────────┘
+┌──────────┬──────────┬──────────┬──────────┐
+│   特性   │ esbuild  │ webpack  │ Rollup   │
+├──────────┼──────────┼──────────┼──────────┤
+│ 构建速度 │ ★★★★★   │ ★★☆☆☆   │ ★★★☆☆   │
+│ 配置简洁 │ ★★★★☆   │ ★★☆☆☆   │ ★★★☆☆   │
+│ 单文件输出│ ★★★★☆   │ ★★★★☆   │ ★★★★★   │
+│ Node 兼容│ ★★★★★   │ ★★★★★   │ ★★★★☆   │
+│ 生态成熟 │ ★★★★☆   │ ★★★★★   │ ★★★★☆   │
+└──────────┴──────────┴──────────┴──────────┘
 ```
 
-Bun bundler 的优势：
-- **极速**：Go/Zig 底层，构建速度快于 webpack 100x+
-- **零配置**：无需 `webpack.config.js`，一条命令生成 bundle
+esbuild 的优势：
+- **极速**：Go 语言实现，构建速度快于 webpack 10-100x
+- **简洁 API**：一条命令即可生成 bundle
 - **单文件输出**：将整个项目打包为一个 `cli.js`，简化分发
 - **原生 ESM 支持**：无需额外配置即可处理 ESM 模块
+- **生态成熟**：被 Vite、tsup 等工具广泛采用
 
 #### 9. Zod — Schema 验证
 
@@ -557,12 +558,12 @@ async function canUseTool(tool, input) {
 ### 5. Nested Agent Pattern（嵌套 Agent 模式）
 
 ```
-Main Agent (Opus)
-  ├── Sub-Agent: Explore (Haiku)     ← 快速搜索
+Main Agent (Sonnet，默认模型)
+  ├── Sub-Agent: Explore (Haiku)     ← 快速搜索（使用廉价模型）
   ├── Sub-Agent: Plan (Sonnet)       ← 设计方案
   ├── Sub-Agent: General (Sonnet)    ← 执行子任务
   │     └── Sub-Sub-Agent: ...       ← 可继续嵌套
-  └── Sub-Agent: Custom (配置)       ← 自定义角色
+  └── Sub-Agent: Custom (配置)       ← 自定义角色（可通过 --model 覆盖）
 ```
 
 每个子 Agent 是完整的 Claude Code 实例，拥有：
@@ -622,7 +623,7 @@ mcp ──────→┘
 [~1s]                               = ~1s
 ```
 
-`Hu8()` 函数使用 `Promise.all` 或 `Promise.allSettled` 并行加载所有启动依赖，将启动时间减少约 60%。
+启动时使用 `Promise.all` 或 `Promise.allSettled` 并行加载所有启动依赖（认证、配置、git 状态、MCP 连接），将启动时间减少约 60%。
 
 ### 3. ripgrep 替代原生搜索
 
@@ -650,12 +651,35 @@ cli.js  (~15600 行, ~2MB)
 启动时: 加载一个文件 → 直接执行 → 快
 ```
 
-Bun bundler 将所有代码（包括依赖）打包为单个 ESM 文件：
+esbuild 将所有代码（包括依赖）打包为单个 ESM 文件：
 - 消除模块解析开销
 - 减少文件 I/O
 - 简化分发（npm install 后只需要 cli.js + vendor binaries）
 
-### 5. 子 Agent 模型降级
+### 5. Prompt Caching 减少重复处理
+
+```
+Agentic Loop 每轮都发送完整消息（system + history + new）:
+
+没有缓存:
+  Turn 1: 处理 [System 5K] + [新消息 1K] = 6K tokens  ($$$)
+  Turn 2: 处理 [System 5K] + [历史 3K] + [新消息 2K] = 10K tokens  ($$$)
+  Turn 3: 处理 [System 5K] + [历史 8K] + [新消息 2K] = 15K tokens  ($$$)
+
+有缓存:
+  Turn 1: 处理 [System 5K 创建缓存] + [新消息 1K] = 6K tokens
+  Turn 2: [System 5K 缓存命中 0.1x] + [历史 3K] + [新消息 2K]
+          实际成本: 0.5K + 3K + 2K = 5.5K tokens  (省 45%)
+  Turn 3: [System+历史 8K 缓存命中 0.1x] + [新消息 2K]
+          实际成本: 0.8K + 2K = 2.8K tokens  (省 81%)
+```
+
+Anthropic 的 Prompt Caching 是 Agentic Loop 最重要的成本优化之一：
+- 缓存命中时输入 token 价格仅为 0.1x
+- System prompt + 早期消息历史是稳定前缀，天然适合缓存
+- 缓存 TTL 5 分钟，活跃对话自动续期
+
+### 6. 子 Agent 模型降级
 
 ```
 成本-性能矩阵:
@@ -669,10 +693,10 @@ Bun bundler 将所有代码（包括依赖）打包为单个 ESM 文件：
 └────────────────┴──────────┴──────────┴───────────┘
 
 实际效果：
-主 Agent (Opus) 调度 3 个 Explore 子 Agent (Haiku) 并行搜索
-总成本 ≈ 1 次 Opus 调用 + 3 次 Haiku 调用
-      ≈ $0.015 + 3 × $0.001 = $0.018
-对比: 3 次 Opus 搜索 = 3 × $0.015 = $0.045 (贵 2.5 倍)
+主 Agent (Sonnet) 调度 3 个 Explore 子 Agent (Haiku) 并行搜索
+总成本 ≈ 1 次 Sonnet 调用 + 3 次 Haiku 调用
+      ≈ $0.003 + 3 × $0.001 = $0.006
+对比: 3 次 Sonnet 搜索 = 3 × $0.003 = $0.009 (贵 1.5 倍)
 ```
 
 ---
@@ -751,7 +775,7 @@ Agent ── 内置工具 1, 2, 3
 开放系统 (Claude Code):
 Agent ── 内置工具
       ── MCP 工具（标准协议）
-      ── 插件（Marketplace）
+      ── MCP 社区生态（第三方 MCP Server）
       ── Hooks（Shell 脚本）
       ── 自定义 Agent
          无限扩展 ✅

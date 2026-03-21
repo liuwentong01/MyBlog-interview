@@ -68,16 +68,40 @@ const systemPrompt = `
 
 **1. 工具使用指南**
 
-告诉模型有哪些工具可用、每个工具的参数格式、调用时机：
+告诉模型有哪些工具可用、每个工具的参数格式、调用时机。
+
+Anthropic API 的工具调用使用**原生 JSON content block**格式，而不是 XML 标签：
+
+```json
+// API 请求中定义可用工具
+{
+  "tools": [
+    {
+      "name": "Read",
+      "description": "Reads a file from the local filesystem.",
+      "input_schema": {
+        "type": "object",
+        "required": ["file_path"],
+        "properties": {
+          "file_path": { "type": "string", "description": "The absolute path to the file" }
+        }
+      }
+    }
+  ]
+}
+
+// 模型返回工具调用时，在 assistant message 的 content 中包含 tool_use block：
+{
+  "type": "tool_use",
+  "id": "toolu_xxxxx",
+  "name": "Read",
+  "input": { "file_path": "/absolute/path/to/file" }
+}
+```
+
+系统提示中还包含工具使用的最佳实践指南：
 
 ```markdown
-You have access to a set of tools you can use to answer the user's question.
-You can invoke functions by writing a "<tool_call>" block like the following:
-
-<tool_call>
-{"name": "Read", "parameters": {"file_path": "/absolute/path/to/file"}}
-</tool_call>
-
 Guidelines:
 - For file searches: search broadly when you don't know where something lives.
   Use Read when you know the specific file path.
@@ -356,12 +380,12 @@ const subAgent = spawnAgent({
 
 这一层在**运行时动态生成**，内容会随着会话进展和环境变化而更新。
 
-#### 1. Auto Memory (MEMORY.md)
+#### 1. Auto Memory（记忆功能）
 
-Agent 在会话过程中学到的知识会被持久化到 `MEMORY.md`，下次启动时自动加载：
+Agent 在会话过程中学到的知识可以被持久化到 `CLAUDE.md` 或 `~/.claude/` 目录下的记忆文件中，下次启动时作为上下文自动加载：
 
 ```markdown
-# MEMORY.md（自动生成）
+# 记忆内容示例（存储在 CLAUDE.md 或记忆文件中）
 
 ## 项目偏好
 - 用户偏好使用 pnpm，不使用 npm

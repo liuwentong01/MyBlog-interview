@@ -168,11 +168,16 @@ async function agenticLoop(userMessage) {
         const permitted = await checkPermission(block.name, block.input);
         if (!permitted) {
           // 用户拒绝 → 记录拒绝结果
-          messages.push({
-            role: 'tool',
+          // 注意：Anthropic API 中 tool_result 以 user 角色发送
+        messages.push({
+          role: 'user',
+          content: [{
+            type: 'tool_result',
+            tool_use_id: block.id,
             content: 'Permission denied by user',
-            tool_use_id: block.id
-          });
+            is_error: true
+          }]
+        });
           continue;
         }
 
@@ -290,7 +295,8 @@ LLM 和系统之间通过 Anthropic Messages API 的 Tool Use 协议通信：
 const BashTool = {
   name: 'Bash',
   description: '执行 shell 命令并返回输出',
-  parameters: {
+  // 注意：Anthropic API 中用 input_schema（非 OpenAI 的 parameters）
+  input_schema: {
     type: 'object',
     properties: {
       command: {

@@ -145,7 +145,7 @@ Claude Code 内置了约 20+ 个工具，按功能可分为以下几类：
 
 | 特性 | 说明 |
 |------|------|
-| **沙箱执行** | 默认在沙箱中运行，限制网络访问和文件系统操作范围 |
+| **权限控制** | 默认需要用户确认，通过权限系统控制可执行的命令 |
 | **后台模式** | `run_in_background: true` 使命令在后台运行，不阻塞主循环 |
 | **超时控制** | 可配置超时（最长 10 分钟），防止死循环命令 |
 | **安全解析** | 使用 tree-sitter-bash 解析命令语法，识别危险操作 |
@@ -168,7 +168,7 @@ Claude Code 内置了约 20+ 个工具，按功能可分为以下几类：
 **安全机制**：
 - 命令经过 tree-sitter-bash 解析，提取操作语义
 - 配合权限系统判断是否需要用户确认
-- 沙箱模式限制可访问的路径和命令
+- 权限规则限制可执行的命令（命令直接在宿主系统执行，非沙箱隔离）
 - 危险命令（`rm -rf /`、`git push --force` 等）触发额外警告
 
 ---
@@ -290,7 +290,7 @@ Edit 操作后:
 **关键特性**：
 - `old_string` 必须在文件中**唯一匹配**（如果多处匹配会失败）
 - 只传输差异部分，极大节省 token 消耗（详见第 5 节）
-- 当 `old_string` 为空时，等同于在文件开头插入 `new_string`
+- 当 `old_string` 为空时，用于创建新文件（`new_string` 作为文件内容）
 
 ---
 
@@ -644,11 +644,11 @@ function getAvailableTools(context: PermissionContext): Tool[] {
 每个工具的参数通过 **JSON Schema** 进行严格验证：
 
 ```typescript
-// 工具定义中包含参数 schema
+// 工具定义中包含参数 schema（Anthropic API 格式）
 const bashTool = {
   name: "Bash",
   description: "执行 shell 命令",
-  parameters: {
+  input_schema: {
     type: "object",
     required: ["command"],
     properties: {
@@ -671,7 +671,7 @@ const bashTool = {
 
 // 调用前验证
 function validateToolInput(tool: Tool, args: unknown): ValidationResult {
-  return jsonSchemaValidate(args, tool.parameters);
+  return jsonSchemaValidate(args, tool.input_schema);
 }
 ```
 
@@ -776,11 +776,12 @@ $(echo rm) -rf /
 eval "rm -rf /"
 ```
 
-tree-sitter-bash 将命令解析为 AST（抽象语法树），能够准确识别：
-- 命令的实际名称（即使经过变量展开、别名等）
-- 管道链中的每个命令
+tree-sitter-bash 将命令解析为 AST（抽象语法树），能够从语法层面识别：
+- 管道链中的每个命令名称
 - 重定向目标
-- 子 shell 和 eval 中的嵌套命令
+- 子 shell 中的命令结构
+
+> 注意：tree-sitter 是语法解析器，无法在解析期解析变量值或别名展开（这些是运行时行为）。它主要用于提取命令名称以进行权限匹配。
 
 ```
 输入: "cat file.txt | grep 'error' > output.log"
@@ -937,15 +938,13 @@ for (const server of mcpServers) {
 **时机**：每次会话开始或工具列表变更时
 
 ```typescript
-// 将工具定义转换为 LLM 可理解的格式
-function generateToolDescriptions(tools: Tool[]): LLMToolSpec[] {
+// 将工具定义转换为 Anthropic API 格式
+// 注意：Anthropic 格式与 OpenAI 不同，没有 type: "function" 包装层
+function generateToolDescriptions(tools: Tool[]): AnthropicToolSpec[] {
   return tools.map(tool => ({
-    type: "function",
-    function: {
-      name: tool.name,
-      description: tool.description,  // 详细的使用说明
-      parameters: tool.inputSchema    // JSON Schema 格式的参数定义
-    }
+    name: tool.name,
+    description: tool.description,        // 详细的使用说明
+    input_schema: tool.inputSchema        // JSON Schema 格式（字段名是 input_schema 不是 parameters）
   }));
 }
 ```
@@ -964,10 +963,10 @@ LLM 基于以下信息做出选择：
 3. 可用工具的描述
 
 ```json
-// LLM 输出的 tool_use 消息
+// LLM 输出的 tool_use 消息（注意 Anthropic 的 ID 格式是 "toolu_" 前缀）
 {
   "type": "tool_use",
-  "id": "call_abc123",
+  "id": "toolu_01abc123",
   "name": "Grep",
   "input": {
     "pattern": "TODO|FIXME|HACK",
@@ -991,7 +990,7 @@ function validateInput(tool: Tool, input: unknown): void {
   }
 
   // 2. 必填检查：required 字段是否都存在
-  for (const field of tool.parameters.required || []) {
+  for (const field of tool.input_schema.required || []) {
     if (!(field in input)) {
       throw new ValidationError(`缺少必填参数: ${field}`);
     }
@@ -999,7 +998,7 @@ function validateInput(tool: Tool, input: unknown): void {
 
   // 3. 类型检查：每个字段的类型是否匹配
   for (const [key, value] of Object.entries(input)) {
-    const schema = tool.parameters.properties[key];
+    const schema = tool.input_schema.properties[key];
     if (!schema) {
       throw new ValidationError(`未知参数: ${key}`);
     }
@@ -1084,13 +1083,14 @@ async function executeTool(
 执行结果以 `tool_result` 消息的形式追加到对话历史中，供 LLM 在下一轮推理中参考：
 
 ```json
+// 注意：Anthropic API 中 tool_result 是 role: "user"，不是 role: "tool"（那是 OpenAI 的格式）
 {
-  "role": "tool",
-  "tool_use_id": "call_abc123",
+  "role": "user",
   "content": [
     {
-      "type": "text",
-      "text": "src/index.ts:42: // TODO: 实现缓存机制\nsrc/utils.ts:15: // FIXME: 这里有竞态条件\n..."
+      "type": "tool_result",
+      "tool_use_id": "toolu_01abc123",
+      "content": "src/index.ts:42: // TODO: 实现缓存机制\nsrc/utils.ts:15: // FIXME: 这里有竞态条件\n..."
     }
   ]
 }
@@ -1120,10 +1120,7 @@ LLM 收到结果后，可以：
  │                        │                          │                       │
  │                        │── 权限检查 ──┐             │                       │
  │                        │             │             │                       │
- │  "允许执行 Grep？"     │<─ 需要确认 ──┘             │                       │
- │ <───────────────────── │                          │                       │
- │  "允许"                │                          │                       │
- │ ─────────────────────> │                          │                       │
+ │                        │<─ 只读,自动放行 ┘             │                       │
  │                        │                          │                       │
  │                        │   execute(Grep, {TODO})  │                       │
  │                        │ ─────────────────────────────────────────────────>│
@@ -1148,7 +1145,7 @@ LLM 收到结果后，可以：
 Claude Code 的工具系统是整个 Agent 架构的**执行引擎**。它的设计核心可以归纳为：
 
 1. **声明式定义**：每个工具通过 JSON Schema 声明接口，实现 LLM 理解与运行时验证的统一
-2. **分层安全**：参数验证 → 权限检查 → 沙箱执行，三层防护确保安全
+2. **分层安全**：参数验证 → 权限检查 → 受控执行，多层防护确保安全
 3. **Token 效率**：Edit 优先于 Write 的策略，最大限度降低 token 消耗
 4. **可扩展性**：MCP 命名空间机制让第三方工具可以无限扩展，同时不与内置工具冲突
 5. **组合式设计**：简单的原子工具通过 Agent Loop 的多轮调用，组合出复杂的操作能力

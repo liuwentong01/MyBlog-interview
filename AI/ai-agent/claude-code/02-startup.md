@@ -1,6 +1,8 @@
 # 02 - Claude Code 启动流程深度解析
 
 > 基于 Claude Code v2.1.80 逆向分析。Claude Code 的启动流程从一个 Node.js CLI 脚本开始，经历参数解析、配置加载、预取并行化、权限初始化、MCP 连接等多个阶段，最终进入交互式 TUI 或 headless 模式。
+>
+> **注意**：本文中的函数名（如 `$E_`、`Hu8`、`Zs1` 等）来自 minified 代码的逆向分析，这些标识符会随版本变化而不同，仅用于说明代码结构，不是稳定的 API 名称。
 
 ---
 
@@ -67,7 +69,7 @@
 
 ```javascript
 #!/usr/bin/env node
-// 这是 Bun bundler 打包后的单文件产物
+// 这是 esbuild 打包后的单文件产物
 // 整个 Claude Code 的所有代码都在这一个文件中
 // 约 15600 行 minified 代码，~197K tokens
 ```
@@ -75,7 +77,7 @@
 **关键点：**
 - `#!/usr/bin/env node` 是 Unix shebang 行，告诉操作系统用 `node` 来执行这个脚本
 - 当你运行 `claude` 命令时，系统通过 `$PATH` 找到这个文件并用 Node.js 执行
-- 全部代码被 Bun bundler 打包成单文件，没有外部 `require` 依赖（依赖全部内联）
+- 全部代码被 esbuild 打包成单文件，没有外部 `require` 依赖（依赖全部内联）
 
 ### 2.2 $E_() — 顶层入口函数
 
@@ -145,12 +147,10 @@ async function main() {
     .option('-p, --print', '非交互模式，直接输出结果到 stdout')
     .option('--continue', '继续上一次会话')
     .option('--resume <sessionId>', '恢复指定会话')
-    .option('--teleport <url>', '从远程 URL 恢复会话快照')
-
     // 配置选项
     .option('--model <model>', '指定使用的模型')
     .option('--settings <path>', '指定配置文件路径')
-    .option('--permission-mode <mode>', '权限模式: auto / manual / supervised')
+    .option('--permission-mode <mode>', '权限模式: default / plan / bypassPermissions / auto')
     .option('--allowedTools <tools...>', '预授权工具列表')
 
     // MCP 选项
@@ -428,13 +428,13 @@ function Zs1(config) {
 │                      │  读取操作自动通过                          │
 │                      │  写入/执行操作弹出审批                     │
 ├──────────────────────┼───────────────────────────────────────────┤
-│  auto (YOLO mode)    │  大部分操作自动通过                        │
-│                      │  仅最危险操作（如 rm -rf）需确认            │
+│  auto                │  基于规则自动判断，安全操作自动放行          │
+│                      │  仅高危操作（如 rm -rf）需确认              │
 │                      │  适合信任度高的场景                        │
 ├──────────────────────┼───────────────────────────────────────────┤
-│  manual              │  所有工具调用都需要确认                     │
-│                      │  最严格的安全模式                          │
-│                      │  适合审计/演示场景                         │
+│  plan                │  只允许只读操作（读文件/搜索等）             │
+│                      │  写入和执行操作直接拒绝                     │
+│                      │  适合分析/规划场景                         │
 └──────────────────────┴───────────────────────────────────────────┘
 ```
 
@@ -501,16 +501,10 @@ Claude Code 支持多种方式恢复之前的会话，避免丢失上下文。
 ```javascript
 // 伪代码还原会话恢复逻辑
 async function restoreSession(options, config) {
-  // 三种恢复方式，优先级从高到低
-
-  if (options.teleport) {
-    // 1. --teleport：从远程 URL 恢复完整会话快照
-    //    通常用于团队协作，分享完整对话上下文
-    return await teleportSession(options.teleport);
-  }
+  // 两种恢复方式，优先级从高到低
 
   if (options.resume) {
-    // 2. --resume <sessionId>：恢复指定 ID 的会话
+    // 1. --resume <sessionId>：恢复指定 ID 的会话
     //    会话数据存储在 ~/.claude/sessions/<id>/
     return await loadSession(options.resume);
   }
@@ -584,7 +578,6 @@ setup(options)
   │                                       │
   │  [STEP 5] 会话恢复                    │
   ├──> restoreSession(options)            │
-  │      ├── 检查 --teleport              │
   │      ├── 检查 --resume                │
   │      └── 检查 --continue              │
   │                                       │
@@ -800,6 +793,6 @@ Claude Code 的启动流程体现了几个重要的工程设计原则：
 3. **分层配置合并**：遵循"越具体越优先"的原则，通过 deepMerge 实现灵活的配置覆盖
 4. **优雅降级**：非关键路径的失败不阻塞启动，用合理的默认值兜底
 5. **关注点分离**：配置加载、权限初始化、MCP 连接、会话恢复各自独立，互不耦合
-6. **单文件分发**：Bun bundler 打包为单个 `cli.js`，简化安装和分发流程
+6. **单文件分发**：esbuild 打包为单个 `cli.js`，简化安装和分发流程
 
 这些设计使得 Claude Code 能在约 1-3 秒内完成从冷启动到可交互状态的全过程，同时保持了极高的灵活性和容错性。

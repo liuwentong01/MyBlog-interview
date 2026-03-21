@@ -55,7 +55,7 @@
 2. **模型决定何时停止**：返回 `end_turn` 而非 `tool_use` 时循环结束
 3. **工具结果反馈形成闭环**：每次工具执行的结果都会送回模型，模型据此决定下一步
 
-这就是为什么同样的 Claude 3.5 Sonnet 模型，在 ChatGPT 式的聊天界面里只能"说"，而在 Claude Code 里能"做"——**差别不在模型，在于这个循环机制**。
+这就是为什么同样的 Claude Sonnet 模型，在 claude.ai 网页聊天界面里只能"说"，而在 Claude Code 里能"做"——**差别不在模型，在于这个循环机制**。
 
 ```
 传统模式：  User → LLM → Response      （LLM 是函数）
@@ -123,15 +123,14 @@ Agent 模式：User → [LLM ⇄ Tools]* → Response  （LLM 是循环中的决
                ║         │  解析 stop_reason    │               ║
                ║         └────────┬────────────┘               ║
                ║                  │                            ║
-               ║        ┌────────┼────────────┐                ║
-               ║        ▼        ▼            ▼                ║
-               ║   "end_turn" "tool_use"  "thinking"           ║
-               ║        │        │            │                ║
-               ║        │        │            │                ║
-               ║        ▼        │            ▼                ║
+               ║        ┌────────┼──────────────┐              ║
+               ║        ▼        ▼              ▼              ║
+               ║   "end_turn" "tool_use"   "max_tokens"        ║
+               ║        │        │              │              ║
+               ║        ▼        │              ▼              ║
                ║   ┌────────┐   │     ┌───────────────┐       ║
-               ║   │ 退出   │   │     │ 记录 thinking │       ║
-               ║   │ 循环   │   │     │ 继续处理      │       ║
+               ║   │ 退出   │   │     │ 响应被截断    │       ║
+               ║   │ 循环   │   │     │ 需要处理      │       ║
                ║   └────────┘   │     └───────────────┘       ║
                ║                │                              ║
                ║                ▼                              ║
@@ -495,15 +494,20 @@ private async *th(): AsyncGenerator<AgenticEvent> {
           break;
 
         case "content_block_stop":
-          contentBlocks.push(event.content_block);
+          // content_block_stop 仅表示该 block 结束，不含 content_block 字段
+          // 完整的 content block 需从 content_block_start + deltas 中累积
+          break;
+
+        case "message_delta":
+          // 注意：stop_reason 在 message_delta 事件中，不在 message_stop 中
+          stopReason = event.delta.stop_reason;
+          // message_delta 的 usage 仅含 output_tokens；input_tokens 在 message_start 中
+          this.totalOutputTokens += event.usage.output_tokens;
+          this.totalCostUsd = this.calculateCost();
           break;
 
         case "message_stop":
-          stopReason = event.message.stop_reason;
-          // 更新 token 计数
-          this.totalInputTokens += event.message.usage.input_tokens;
-          this.totalOutputTokens += event.message.usage.output_tokens;
-          this.totalCostUsd = this.calculateCost();
+          // message_stop 仅表示流结束，不包含额外数据
           break;
       }
     }
@@ -687,11 +691,17 @@ data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta"
 event: content_block_stop
 data: {"type":"content_block_stop","index":1}
 
+event: message_delta
+data: {"type":"message_delta","delta":{"stop_reason":"tool_use"},"usage":{"output_tokens":42}}
+
 event: message_stop
-data: {"type":"message_stop","stop_reason":"tool_use"}
+data: {"type":"message_stop"}
 ```
 
-注意 **tool_use 的参数也是 streaming 的**——JSON 参数是分片传输的（`input_json_delta`），需要客户端拼接后再解析。
+注意几个关键细节：
+1. **tool_use 的参数也是 streaming 的**——JSON 参数是分片传输的（`input_json_delta`），需要客户端累积拼接后再 JSON.parse
+2. **`stop_reason` 在 `message_delta` 事件中**，不在 `message_stop` 中——`message_stop` 仅表示流结束
+3. **`message_delta` 还包含 `usage` 信息**——output_tokens 计数在这里
 
 ### 4.2 多轮自动执行：模型决定何时停止
 
@@ -746,7 +756,7 @@ if (this.turnCount >= this.maxTurns) {
 每轮 API 调用后累加 token 花费：
 
 ```typescript
-// 价格计算（以 Claude 3.5 Sonnet 为例）
+// 价格计算（以 Claude Sonnet 4 为例，价格可能变动，请查阅官方文档）
 const INPUT_PRICE_PER_MTK = 3;    // $3 / 1M input tokens
 const OUTPUT_PRICE_PER_MTK = 15;  // $15 / 1M output tokens
 
@@ -798,43 +808,46 @@ async function* th() {
 - 已接收的部分响应仍然保留在 messages 中
 - 下次继续时，模型可以看到之前的上下文
 
-### 4.5 结构化输出：JSON Schema 验证
+### 4.5 结构化输出：通过 Tool Use 实现
 
-当需要模型返回结构化数据时（而非自由文本），Agentic Loop 支持 JSON Schema 验证：
+Anthropic API **没有** OpenAI 那样的 `response_format` / `json_schema` 参数。在 Claude Code 中，结构化输出通过 **Tool Use 机制** 实现：
 
 ```typescript
-// 请求模型返回符合 schema 的 JSON
+// Anthropic 的结构化输出方式：定义一个"输出工具"
 const response = await callAPI({
   messages,
-  tools,
-  // 要求结构化输出
-  response_format: {
-    type: "json_schema",
-    json_schema: {
-      name: "code_analysis",
-      schema: {
-        type: "object",
-        properties: {
-          issues: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                file: { type: "string" },
-                line: { type: "number" },
-                severity: { type: "string", enum: ["error", "warning", "info"] },
-                message: { type: "string" }
-              },
-              required: ["file", "line", "severity", "message"]
-            }
+  tools: [{
+    name: "output_analysis",
+    description: "输出代码分析结果",
+    input_schema: {
+      type: "object",
+      properties: {
+        issues: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              file: { type: "string" },
+              line: { type: "number" },
+              severity: { type: "string", enum: ["error", "warning", "info"] },
+              message: { type: "string" }
+            },
+            required: ["file", "line", "severity", "message"]
           }
-        },
-        required: ["issues"]
-      }
+        }
+      },
+      required: ["issues"]
     }
-  }
+  }],
+  // 强制模型使用指定工具，从而获得结构化输出
+  tool_choice: { type: "tool", name: "output_analysis" }
 });
 ```
+
+**关键区别：**
+- OpenAI 有原生 `response_format` 参数
+- Anthropic 通过 `tool_choice` 强制调用特定工具来获得结构化 JSON
+- `tool_choice` 支持 `"auto"` / `"any"` / `{ type: "tool", name: "..." }` 三种模式
 
 在 Claude Code 中，这主要用于内部的子任务（如 lint 检查结果解析、任务分解等），而非直接面向用户。
 
@@ -1160,9 +1173,9 @@ class AgenticLoop {
         if (event.type === "content_block_stop") {
           contentBlocks.push(event.content_block);
         }
-        if (event.type === "message_stop") {
-          stopReason = event.message.stop_reason;
-          totalCostUsd += calculateCost(event.message.usage);
+        if (event.type === "message_delta") {
+          stopReason = event.delta.stop_reason;
+          totalCostUsd += calculateCost(event.usage);
         }
       }
 
@@ -1304,6 +1317,125 @@ Client (Claude Code)              Anthropic API                Tools
 
 总计: 3 轮 API 调用, 2 次工具执行
 ```
+
+---
+
+## 8. 面试重点补充
+
+### 8.1 Prompt Caching（提示缓存）
+
+**这是面试高频考点**。Claude Code 利用 Anthropic 的 Prompt Caching 功能大幅优化了 Agentic Loop 的性能和成本：
+
+```
+没有 Prompt Caching:
+Turn 1: [System Prompt: 5K] + [User: 1K] → 处理 6K tokens
+Turn 2: [System Prompt: 5K] + [User: 1K] + [Asst: 2K] + [Tool: 3K] → 处理 11K tokens
+Turn 3: [System Prompt: 5K] + [前面所有: 7K] + [新内容: 3K] → 处理 15K tokens
+                ↑ System Prompt 每轮都重新处理！
+
+有 Prompt Caching:
+Turn 1: [System Prompt: 5K ← 缓存创建] + [User: 1K] → 处理 6K，缓存 5K
+Turn 2: [System Prompt: 5K ← 缓存命中] + [前面所有: 3K ← 缓存创建] + [新内容: 3K]
+         → 只需处理 3K 新 tokens！缓存命中的 5K 仅需 0.1x 价格
+Turn 3: [System Prompt + 前面: 8K ← 缓存命中] + [新内容: 3K]
+         → 只需处理 3K 新 tokens！
+```
+
+**为什么这对 Agent 至关重要？**
+- Agentic Loop 每轮都发送完整消息历史（包括 system prompt）
+- 没有缓存时，30 轮对话的 system prompt 会被处理 30 次
+- 有缓存时，system prompt 只在第一轮处理，后续轮次从缓存读取
+- **成本节省 50-90%，延迟降低 50-85%**
+
+**API 中的缓存标记（cache_control）：**
+```json
+{
+  "system": [
+    {
+      "type": "text",
+      "text": "你是 Claude Code...",
+      "cache_control": { "type": "ephemeral" }  // ← 标记为可缓存
+    }
+  ],
+  "messages": [...]
+}
+```
+
+**面试回答要点：**
+1. Prompt Caching 是 Agentic Loop 的关键优化
+2. 缓存的是 token 前缀（prefix），只要前缀不变就能命中
+3. System prompt + 早期消息历史是稳定的前缀，天然适合缓存
+4. 缓存有 TTL（5 分钟），活跃对话会持续续期
+
+### 8.2 Context Window 管理
+
+当累积的消息超过模型的 context window（如 200K tokens），Agent 必须做出选择：
+
+```
+                    200K Context Window
+┌──────────────────────────────────────────┐
+│ System Prompt │ 历史消息 │ 最近消息 │ 回复 │
+│    ~8K       │  ~120K   │  ~50K    │~16K │
+└──────────────────────────────────────────┘
+                    ↑ 快满了！
+
+选项 1: 压缩历史消息（/compact）
+┌──────────────────────────────────────────┐
+│ System Prompt │ 摘要 │ 最近消息   │ 回复  │
+│    ~8K       │ ~10K │  ~50K      │~16K  │
+└──────────────────────────────────────────┘
+                    ↑ 空间释放！
+
+选项 2: API 返回 max_tokens 错误，需要截断
+```
+
+**面试回答要点：**
+1. 上下文窗口管理是 Agent 系统的核心挑战之一
+2. Claude Code 使用摘要压缩（让 LLM 自己总结历史），不用 RAG 或滑动窗口
+3. 压缩是有损的——会丢失细节，可能导致 Agent 重复操作
+4. 工具输出（特别是文件读取）是 token 消耗大户，需要截断
+
+### 8.3 并行工具执行
+
+当模型在一次响应中返回多个 tool_use block 时，Claude Code 可以并行执行：
+
+```typescript
+// 模型返回了 2 个独立的 Read 请求
+const toolUseBlocks = contentBlocks.filter(b => b.type === "tool_use");
+
+// 并行执行（如果工具之间没有依赖）
+const toolResults = await Promise.all(
+  toolUseBlocks.map(async (block) => {
+    const result = await executeTool(block.name, block.input);
+    return { type: "tool_result", tool_use_id: block.id, content: result };
+  })
+);
+
+// 所有结果作为一条 user 消息返回
+messages.push({ role: "user", content: toolResults });
+```
+
+**面试回答要点：**
+1. 并行执行减少了总等待时间
+2. 但要注意工具间的依赖关系（如先 Read 再 Edit）
+3. 所有 tool_result 必须在同一条 user 消息中返回
+
+### 8.4 `tool_choice` 参数
+
+Anthropic API 支持通过 `tool_choice` 控制模型的工具使用行为：
+
+```typescript
+// 让模型自由选择是否使用工具（默认）
+{ tool_choice: { type: "auto" } }
+
+// 强制模型使用某个工具
+{ tool_choice: { type: "tool", name: "Bash" } }
+
+// 强制模型使用任意一个工具（不能只返回文本）
+{ tool_choice: { type: "any" } }
+```
+
+这在 Agent 设计中很有用——比如当你需要强制模型执行某个操作而不是只返回文本时。
 
 ---
 

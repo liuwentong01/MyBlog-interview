@@ -23,7 +23,7 @@
 
 - 版本：Claude Code v2.1.80
 - 代码量：~15600 行 minified 代码，约 197K tokens
-- 构建产物：单文件 bundle (cli.js)，由 Bun bundler 打包
+- 构建产物：单文件 bundle (cli.js)，由 esbuild 打包
 
 ## 核心设计模式
 

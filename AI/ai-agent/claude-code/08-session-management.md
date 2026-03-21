@@ -72,21 +72,18 @@ Agent 不是简单的问答系统。一个典型的任务可能需要：
 
 ### 2.2 本地文件系统存储
 
-Claude Code 将会话数据持久化到本地文件系统，典型的存储路径结构：
+Claude Code 将会话数据持久化到本地文件系统。实际存储按项目路径组织（非精确路径，可能随版本变化）：
 
 ```
 ~/.claude/
-├── sessions/
-│   ├── abc123-def456-789/
-│   │   ├── session.json          # 会话元数据
-│   │   └── messages.json         # 完整消息历史
-│   ├── xyz789-abc123-456/
-│   │   ├── session.json
-│   │   └── messages.json
-│   └── ...
-├── session-latest.json           # 指向最近会话的指针
-└── config.json                   # 全局配置
+├── projects/
+│   └── <project-path-hash>/
+│       ├── <session-id>.jsonl    # 会话消息历史（JSONL 格式）
+│       └── ...
+└── settings.json                 # 全局配置
 ```
+
+> 注意：以上路径结构为概念示意，实际存储格式和路径可能随版本演进而变化。
 
 这种设计的优点：
 - **无需数据库依赖**：CLI 工具保持轻量
@@ -127,22 +124,27 @@ Session ID 的用途：
 
 ```typescript
 // 消息历史的序列化结构
+// 注意：使用 Anthropic Messages API 格式，而非 OpenAI 格式
 interface SerializedMessage {
-  role: "user" | "assistant" | "system";
+  role: "user" | "assistant";         // Anthropic API 只有 user/assistant
   content: string | ContentBlock[];   // 文本或结构化内容块
   timestamp: number;
-  // 工具调用相关
-  tool_calls?: ToolCall[];            // Assistant 发起的工具调用
-  tool_call_id?: string;             // tool_result 消息关联的调用 ID
 }
 
-interface ToolCall {
-  id: string;
-  type: "function";
-  function: {
-    name: string;                     // 如 "Read", "Bash", "Edit"
-    arguments: string;                // JSON 字符串化的参数
-  };
+// Assistant 消息中的工具调用（作为 content block）
+interface ToolUseBlock {
+  type: "tool_use";
+  id: string;                         // 如 "toolu_01abc123"
+  name: string;                       // 如 "Read", "Bash", "Edit"
+  input: Record<string, unknown>;     // 结构化的参数对象
+}
+
+// User 消息中的工具结果（也作为 content block）
+interface ToolResultBlock {
+  type: "tool_result";
+  tool_use_id: string;                // 关联 tool_use 的 id
+  content: string;                    // 工具执行结果
+  is_error?: boolean;                 // 是否为错误
 }
 ```
 
@@ -246,50 +248,15 @@ Fork 会话:  M1 → M2 → M3 → M6 → M7 (不同的方向)
 - 需要保留一个"检查点"，可以随时回退
 - 类似 Git 的分支开发模式
 
-### 3.4 `--teleport`: 远程会话传输
-
-```bash
-# 在机器 A 上导出会话
-claude --teleport export > session-dump.json
-
-# 在机器 B 上导入会话
-claude --teleport import < session-dump.json
-```
-
-**工作流程：**
-
-```
-导出端:
-  1. 序列化完整会话状态（消息历史 + 元数据 + 环境信息）
-  2. 打包为可传输格式
-  3. 可选加密
-
-导入端:
-  1. 解析传输数据
-  2. 创建新的本地会话
-  3. 适配本地环境（如路径映射）
-  4. 恢复对话上下文
-```
-
-**适用场景：**
-- 在不同机器间迁移工作上下文
-- 团队成员间共享对话进度（"我调试到这一步了，你接着看"）
-- 从远程开发机同步会话到本地
-- 备份重要的对话历史
-
-**技术挑战：**
-- 路径映射：源机器的 `/home/alice/project` 在目标机器上可能是 `/Users/bob/project`
-- 环境差异：不同机器的工具集、权限配置可能不同
-- 数据安全：传输过程中的加密和验证
-
-### 3.5 恢复方式对比总结
+### 3.4 恢复方式对比总结
 
 | 方式 | 命令 | 创建新会话 | 适用场景 |
 |------|------|-----------|---------|
 | Resume | `--resume <id>` | 否 | 精确恢复特定会话 |
 | Continue | `--continue` | 否 | 快速恢复最近会话 |
 | Fork | `--fork-session` | 是 | 在会话基础上分支探索 |
-| Teleport | `--teleport` | 是 | 跨机器迁移会话 |
+
+> **注意**：用户也可以通过 `/compact` 斜杠命令手动触发上下文压缩，无需等待自动触发。
 
 ---
 
@@ -353,22 +320,19 @@ Token 使用量
 
 当 token 使用量达到阈值时，系统自动触发压缩，将 token 使用量降回安全区域。
 
-### 4.3 compact_boundary 系统消息
+### 4.3 压缩摘要消息
 
-Claude Code 使用一个特殊的系统消息 `compact_boundary` 来标记压缩点：
+压缩后，早期历史被替换为摘要消息。注意 Anthropic API 的 messages 数组中只支持 `role: "user"` 和 `role: "assistant"`，不支持 `role: "system"`（系统指令通过顶层 `system` 参数传递）：
 
 ```typescript
-// 压缩时插入的边界标记
-const compactBoundary: Message = {
-  role: "system",
-  content: "[compact_boundary] 以下是对之前对话的压缩摘要...",
-  metadata: {
-    type: "compact_boundary",
-    compressedAt: Date.now(),
-    originalMessageCount: 45,     // 被压缩的原始消息数量
-    originalTokenCount: 120000,   // 被压缩前的 token 数量
-    compressedTokenCount: 8000,   // 压缩后的 token 数量
-  }
+// 压缩后的摘要消息（概念示意，实际格式可能不同）
+// 摘要以 user/assistant 消息对的形式注入
+const compactSummary: Message = {
+  role: "user",
+  content: [{
+    type: "text",
+    text: "[compact_summary] 以下是对之前对话的压缩摘要：\n[摘要内容...]"
+  }]
 };
 ```
 
@@ -682,7 +646,7 @@ Session A: 重构模块 X        Session B: 修复 Bug Y
 会话管理是 Agent 系统的"记忆层"，直接决定了 Agent 能否在长任务中保持连贯性和正确性。核心设计决策包括：
 
 - **持久化**：本地文件系统，JSON 格式，零依赖
-- **恢复机制**：resume / continue / fork / teleport，覆盖各种使用场景
+- **恢复机制**：resume / continue / fork，覆盖各种使用场景
 - **压缩策略**：基于 LLM 的摘要压缩，在信息保留和容量限制间取得平衡
 - **边界标记**：compact_boundary 系统消息清晰分隔压缩摘要和原始对话
 
